@@ -32,7 +32,7 @@ class ModdySystems(commands.Bot):
 
         self.session = None
         self.team_members = set()  # IDs des membres de l'équipe de développement
-        self.application_id = None
+        self.app_id = None  # ID de l'application (renommé)
 
     async def setup_hook(self):
         """Hook appelé lors de l'initialisation du bot"""
@@ -57,7 +57,7 @@ class ModdySystems(commands.Bot):
         try:
             # Récupérer les informations de l'application
             app_info = await self.application_info()
-            self.application_id = app_info.id
+            self.app_id = app_info.id
 
             # Si l'app a une équipe, récupérer les membres
             if app_info.team:
