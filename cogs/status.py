@@ -115,7 +115,7 @@ class IncidentModal(ui.Modal):
         container.add_item(ui.TextDisplay("*Updates will be edited in this message*"))
 
         # Footer with mentions placeholder
-        container.add_item(ui.TextDisplay("-# Updates will be posted here"))
+        container.add_item(ui.TextDisplay("-# <@&1424466344832925847> / @here"))
 
         view.add_item(container)
 
