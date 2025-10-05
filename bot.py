@@ -48,9 +48,9 @@ class ModdySystems(commands.Bot):
         # Synchroniser les commandes slash si nécessaire
         try:
             synced = await self.tree.sync()
-            logger.info(f"Synchronisé {len(synced)} commandes slash")
+            logger.info(f"Synced {len(synced)} slash commands")
         except Exception as e:
-            logger.error(f"Erreur lors de la synchronisation des commandes: {e}")
+            logger.error(f"Error syncing commands: {e}")
 
     async def load_team_members(self):
         """Charge les membres de l'équipe de développement depuis l'API Discord"""
@@ -63,17 +63,17 @@ class ModdySystems(commands.Bot):
             if app_info.team:
                 for member in app_info.team.members:
                     self.team_members.add(member.id)
-                    logger.info(f"Membre de l'équipe ajouté: {member.name} ({member.id})")
+                    logger.info(f"Team member added: {member.name} ({member.id})")
             else:
                 # Si pas d'équipe, ajouter seulement l'owner
                 self.team_members.add(app_info.owner.id)
-                logger.info(f"Owner ajouté: {app_info.owner.name} ({app_info.owner.id})")
+                logger.info(f"Owner added: {app_info.owner.name} ({app_info.owner.id})")
 
             # Mettre à jour les owner_ids pour les commandes
             self.owner_ids = self.team_members
 
         except Exception as e:
-            logger.error(f"Erreur lors du chargement de l'équipe: {e}")
+            logger.error(f"Error loading team: {e}")
 
     async def load_cogs(self):
         """Charge tous les cogs depuis le dossier cogs/"""
@@ -82,7 +82,7 @@ class ModdySystems(commands.Bot):
         # Créer le dossier cogs s'il n'existe pas
         if not os.path.exists(cogs_dir):
             os.makedirs(cogs_dir)
-            logger.warning(f"Dossier '{cogs_dir}' créé car il n'existait pas")
+            logger.warning(f"Created '{cogs_dir}' folder as it didn't exist")
             return
 
         # Charger chaque fichier .py dans le dossier cogs
@@ -91,99 +91,96 @@ class ModdySystems(commands.Bot):
                 extension_name = f'cogs.{filename[:-3]}'
                 try:
                     await self.load_extension(extension_name)
-                    logger.info(f"Cog chargé: {extension_name}")
+                    logger.info(f"Cog loaded: {extension_name}")
                 except Exception as e:
-                    logger.error(f"Échec du chargement de {extension_name}: {e}")
+                    logger.error(f"Failed to load {extension_name}: {e}")
 
     async def on_ready(self):
         """Événement déclenché quand le bot est prêt"""
         logger.info(f"{'=' * 50}")
-        logger.info(f"Bot connecté en tant que {self.user}")
+        logger.info(f"Bot connected as {self.user}")
         logger.info(f"ID: {self.user.id}")
-        logger.info(f"Serveurs: {len(self.guilds)}")
-        logger.info(f"Membres de l'équipe: {len(self.team_members)}")
+        logger.info(f"Servers: {len(self.guilds)}")
+        logger.info(f"Team members: {len(self.team_members)}")
         logger.info(f"{'=' * 50}")
 
         # Définir le statut du bot depuis la variable d'environnement
         custom_status = os.getenv('STATUS')
         if custom_status:
-            # Utiliser le statut personnalisé
+            # Utiliser un Custom Activity pour du texte simple
             await self.change_presence(
-                activity=discord.Activity(
-                    type=discord.ActivityType.playing,
-                    name=custom_status
-                ),
+                activity=discord.CustomActivity(name=custom_status),
                 status=discord.Status.online
             )
-            logger.info(f"Statut personnalisé défini: {custom_status}")
+            logger.info(f"Custom status set: {custom_status}")
         else:
             # Statut par défaut si STATUS n'est pas défini
             await self.change_presence(
                 activity=discord.Activity(
                     type=discord.ActivityType.watching,
-                    name=f"{len(self.guilds)} serveurs"
+                    name=f"{len(self.guilds)} servers"
                 ),
                 status=discord.Status.online
             )
-            logger.info(f"Statut par défaut: Watching {len(self.guilds)} serveurs")
+            logger.info(f"Default status: Watching {len(self.guilds)} servers")
 
     async def on_guild_join(self, guild):
         """Événement déclenché quand le bot rejoint un serveur"""
-        logger.info(f"Bot ajouté au serveur: {guild.name} ({guild.id})")
+        logger.info(f"Bot added to server: {guild.name} ({guild.id})")
 
         # Vérifier si l'owner fait partie de l'équipe de développement
         if guild.owner_id in self.team_members:
-            logger.info(f"✅ L'owner {guild.owner} fait partie de l'équipe de développement")
+            logger.info(f"✅ Owner {guild.owner} is part of the development team")
 
             # Envoyer un message de bienvenue personnalisé si possible
             try:
                 if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
                     embed = discord.Embed(
-                        title="🎉 Moddy Systems - Équipe de Développement",
-                        description=f"Salut {guild.owner.mention}! Ravi de voir un membre de l'équipe!\n\n"
-                                    f"Le bot est maintenant opérationnel sur ce serveur.",
+                        title="🎉 Moddy Systems - Development Team",
+                        description=f"Hey {guild.owner.mention}! Nice to see a team member!\n\n"
+                                    f"The bot is now operational on this server.",
                         color=discord.Color.green()
                     )
                     embed.set_footer(text="Moddy Systems Support Bot")
                     await guild.system_channel.send(embed=embed)
             except Exception as e:
-                logger.error(f"Impossible d'envoyer le message de bienvenue: {e}")
+                logger.error(f"Unable to send welcome message: {e}")
         else:
-            logger.warning(f"⚠️ L'owner {guild.owner} ({guild.owner_id}) ne fait PAS partie de l'équipe")
+            logger.warning(f"⚠️ Owner {guild.owner} ({guild.owner_id}) is NOT part of the team")
 
             # Optionnel: Envoyer un message standard
             try:
                 if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
                     embed = discord.Embed(
                         title="👋 Moddy Systems Support Bot",
-                        description="Merci d'avoir ajouté Moddy Systems à votre serveur!\n\n"
-                                    "Ce bot est conçu pour fournir un support complet.",
+                        description="Thanks for adding Moddy Systems to your server!\n\n"
+                                    "This bot is designed to provide comprehensive support.",
                         color=discord.Color.blue()
                     )
                     embed.set_footer(text="Moddy Systems Support Bot")
                     await guild.system_channel.send(embed=embed)
             except Exception as e:
-                logger.error(f"Impossible d'envoyer le message de bienvenue: {e}")
+                logger.error(f"Unable to send welcome message: {e}")
 
         # Mettre à jour le statut seulement si STATUS n'est pas défini
         if not os.getenv('STATUS'):
             await self.change_presence(
                 activity=discord.Activity(
                     type=discord.ActivityType.watching,
-                    name=f"{len(self.guilds)} serveurs"
+                    name=f"{len(self.guilds)} servers"
                 )
             )
 
     async def on_guild_remove(self, guild):
         """Événement déclenché quand le bot est retiré d'un serveur"""
-        logger.info(f"Bot retiré du serveur: {guild.name} ({guild.id})")
+        logger.info(f"Bot removed from server: {guild.name} ({guild.id})")
 
         # Mettre à jour le statut seulement si STATUS n'est pas défini
         if not os.getenv('STATUS'):
             await self.change_presence(
                 activity=discord.Activity(
                     type=discord.ActivityType.watching,
-                    name=f"{len(self.guilds)} serveurs"
+                    name=f"{len(self.guilds)} servers"
                 )
             )
 
@@ -206,15 +203,15 @@ async def main():
     token = os.getenv('DISCORD_TOKEN')
 
     if not token:
-        logger.error("TOKEN Discord non trouvé! Assurez-vous d'avoir un fichier .env avec DISCORD_TOKEN=votre_token")
+        logger.error("Discord TOKEN not found! Make sure you have a .env file with DISCORD_TOKEN=your_token")
         return
 
     try:
         await bot.start(token)
     except discord.LoginFailure:
-        logger.error("Token invalide! Vérifiez votre token Discord.")
+        logger.error("Invalid token! Check your Discord token.")
     except Exception as e:
-        logger.error(f"Erreur lors du démarrage du bot: {e}")
+        logger.error(f"Error starting bot: {e}")
     finally:
         await bot.close()
 
@@ -224,6 +221,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot arrêté manuellement")
+        logger.info("Bot stopped manually")
     except Exception as e:
-        logger.error(f"Erreur fatale: {e}")
+        logger.error(f"Fatal error: {e}")
