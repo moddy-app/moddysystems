@@ -104,14 +104,28 @@ class ModdySystems(commands.Bot):
         logger.info(f"Membres de l'équipe: {len(self.team_members)}")
         logger.info(f"{'=' * 50}")
 
-        # Définir le statut du bot
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} serveurs"
-            ),
-            status=discord.Status.online
-        )
+        # Définir le statut du bot depuis la variable d'environnement
+        custom_status = os.getenv('STATUS')
+        if custom_status:
+            # Utiliser le statut personnalisé
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.playing,
+                    name=custom_status
+                ),
+                status=discord.Status.online
+            )
+            logger.info(f"Statut personnalisé défini: {custom_status}")
+        else:
+            # Statut par défaut si STATUS n'est pas défini
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} serveurs"
+                ),
+                status=discord.Status.online
+            )
+            logger.info(f"Statut par défaut: Watching {len(self.guilds)} serveurs")
 
     async def on_guild_join(self, guild):
         """Événement déclenché quand le bot rejoint un serveur"""
@@ -151,25 +165,27 @@ class ModdySystems(commands.Bot):
             except Exception as e:
                 logger.error(f"Impossible d'envoyer le message de bienvenue: {e}")
 
-        # Mettre à jour le statut
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} serveurs"
+        # Mettre à jour le statut seulement si STATUS n'est pas défini
+        if not os.getenv('STATUS'):
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} serveurs"
+                )
             )
-        )
 
     async def on_guild_remove(self, guild):
         """Événement déclenché quand le bot est retiré d'un serveur"""
         logger.info(f"Bot retiré du serveur: {guild.name} ({guild.id})")
 
-        # Mettre à jour le statut
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"{len(self.guilds)} serveurs"
+        # Mettre à jour le statut seulement si STATUS n'est pas défini
+        if not os.getenv('STATUS'):
+            await self.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=f"{len(self.guilds)} serveurs"
+                )
             )
-        )
 
     async def close(self):
         """Fermeture propre du bot"""
