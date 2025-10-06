@@ -22,7 +22,7 @@ class IncidentStatus(Enum):
     PARTIALLY_RESOLVED = ("partially_resolved", "<:ystatus:1424029739496112200>", "Partially Resolved")
     REMAINS_UNSTABLE = ("remains_unstable", "<:ystatus:1424029739496112200>", "Remains Unstable")
     KNOWN_ISSUES = ("known_issues", "<:ystatus:1424029739496112200>", "Known Issues")
-    RESOLVED = ("resolved", "<:gstatus:1424029737977778206>", "Resolved")
+    RESOLVED = ("resolved", "<:ystatus:1424029739496112200>", "Resolved")
 
 
 class MaintenanceStatus(Enum):
@@ -311,9 +311,9 @@ class MentionsView(discord.ui.View):
         if self.status_link:
             content_parts.append(f"* **Status link:** {self.status_link}")
 
-        # Add incident ID
-        incident_id = f"{datetime.now().strftime('%Y%m%d')}{int(datetime.now().timestamp()) % 10000:04d}"
-        content_parts.append(f"* **Incident ID:** `#{incident_id}`")
+        # Add status ID
+        status_id = f"{datetime.now().strftime('%Y%m%d')}{int(datetime.now().timestamp()) % 10000:04d}"
+        content_parts.append(f"* **Status ID:** `#{status_id}`")
 
         container.add_item(ui.TextDisplay('\n'.join(content_parts)))
 
@@ -357,7 +357,7 @@ class MentionsView(discord.ui.View):
             self.data['type'] = self.report_type
             self.data['status_link'] = self.status_link
             self.data['mentions'] = self.mentions
-            self.data['incident_id'] = incident_id
+            self.data['status_id'] = status_id
 
             # Save to JSON
             incidents = {}
@@ -373,7 +373,7 @@ class MentionsView(discord.ui.View):
             await interaction.response.edit_message(
                 content=f"✅ {self.report_type.capitalize()} created successfully!\n"
                         f"**Message ID:** `{message.id}`\n"
-                        f"**Incident ID:** `#{incident_id}`\n"
+                        f"**Status ID:** `#{status_id}`\n"
                         f"**Channel:** {channel.mention}",
                 view=None
             )
@@ -502,17 +502,18 @@ class UpdateModal(ui.Modal):
 
         incident = incidents[self.message_id]
 
+        # Update status if provided
+        if self.new_status.value:
+            incident['status'] = self.new_status.value.lower().replace(" ", "_")
+
         # Add the update
         timestamp = self.timestamp.value or str(int(datetime.now().timestamp()))
         update = {
             'description': self.description.value,
             'timestamp': timestamp,
-            'number': len(incident['updates']) + 1
+            'number': len(incident['updates']) + 1,
+            'status': incident['status']
         }
-
-        # Update status if provided
-        if self.new_status.value:
-            incident['status'] = self.new_status.value.lower().replace(" ", "_")
 
         # Update ETA if provided
         if self.eta.value:
@@ -599,8 +600,8 @@ class UpdateModal(ui.Modal):
         if incident.get('status_link'):
             content_parts.append(f"* **Status link:** {incident['status_link']}")
 
-        if incident.get('incident_id'):
-            content_parts.append(f"* **Incident ID:** `#{incident['incident_id']}`")
+        if incident.get('status_id'):
+            content_parts.append(f"* **Status ID:** `#{incident['status_id']}`")
 
         container.add_item(ui.TextDisplay('\n'.join(content_parts)))
 
@@ -611,8 +612,10 @@ class UpdateModal(ui.Modal):
         if incident['updates']:
             update_texts = []
             for upd in incident['updates']:
+                upd_status = upd.get('status', incident['status'])
+                upd_emoji, upd_status_text = get_status_emoji_and_text(upd_status, is_maintenance)
                 update_texts.append(
-                    f"> **Update {upd['number']}, <t:{upd['timestamp']}:R>:**\n"
+                    f"> {upd_emoji} **Update {upd['number']} — {upd_status_text}, <t:{upd['timestamp']}:R>:**\n"
                     f"> {upd['description']}"
                 )
             container.add_item(ui.TextDisplay('\n'.join(update_texts)))
@@ -960,7 +963,7 @@ class Status(commands.Cog):
 
             emoji, status_text = get_status_emoji_and_text(incident['status'])
             entry = {
-                'id': incident.get('incident_id', 'N/A'),
+                'id': incident.get('status_id', 'N/A'),
                 'title': incident['title'],
                 'status': status_text,
                 'emoji': emoji,
@@ -1103,7 +1106,8 @@ class Status(commands.Cog):
         update = {
             'description': completion_text,
             'timestamp': timestamp,
-            'number': len(incident['updates']) + 1
+            'number': len(incident['updates']) + 1,
+            'status': 'completed'
         }
         incident['updates'].append(update)
 
@@ -1306,7 +1310,8 @@ class Status(commands.Cog):
         update = {
             'description': f"**RESOLVED:** {resolution}",
             'timestamp': timestamp,
-            'number': len(incident['updates']) + 1
+            'number': len(incident['updates']) + 1,
+            'status': 'resolved'
         }
         incident['updates'].append(update)
 
