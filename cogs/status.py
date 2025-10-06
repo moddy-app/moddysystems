@@ -22,7 +22,7 @@ class IncidentStatus(Enum):
     PARTIALLY_RESOLVED = ("partially_resolved", "<:ystatus:1424029739496112200>", "Partially Resolved")
     REMAINS_UNSTABLE = ("remains_unstable", "<:ystatus:1424029739496112200>", "Remains Unstable")
     KNOWN_ISSUES = ("known_issues", "<:ystatus:1424029739496112200>", "Known Issues")
-    RESOLVED = ("resolved", "<:ystatus:1424029739496112200>", "Resolved")
+    RESOLVED = ("resolved", "<:gstatus:1424029737977778206>", "Resolved")
 
 
 class MaintenanceStatus(Enum):
@@ -129,7 +129,7 @@ class IncidentModal(ui.Modal):
             'services': self.services.value,
             'severity': self.severity.value.capitalize(),
             'eta': self.eta.value,
-            'status': 'investigating',
+            'status': 'ongoing',
             'start_time': int(datetime.now().timestamp())
         }
 
@@ -323,14 +323,11 @@ class MentionsView(discord.ui.View):
         # Updates section
         container.add_item(ui.TextDisplay("*Updates will be edited in this message*"))
 
-        # Build mention string for actual pings
-        mention_string = " ".join(self.mentions) if self.mentions else ""
-
         # Footer with mentions
         if self.mentions:
             # To support V2 components, mentions must be in the view content, not the message content field.
-            # We add the raw mention string to the view for the ping to work.
-            container.add_item(ui.TextDisplay(mention_string))
+            # The mention is included in the line below, so a separate raw mention display is not needed.
+            # This prevents a second, large mention from appearing.
 
             mentions_text = " / ".join(self.mentions)
             container.add_item(ui.TextDisplay(f"-# {mentions_text}"))
