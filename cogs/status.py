@@ -1277,12 +1277,6 @@ class Status(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
-async def setup(bot):
-    """Setup function to load the cog"""
-    await bot.add_cog(Status(bot))
-    message(interaction, incident)
-
     @incident_group.command(name="resolve", description="Mark an incident as resolved")
     @app_commands.describe(
         message_id="The message ID of the incident to resolve",
@@ -1326,4 +1320,9 @@ async def setup(bot):
 
         # Update the message
         modal = UpdateModal(message_id)
-        await modal.update_
+        await modal.update_message(interaction, incident)
+
+
+async def setup(bot):
+    """Setup function to load the cog"""
+    await bot.add_cog(Status(bot))
