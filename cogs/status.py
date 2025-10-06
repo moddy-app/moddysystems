@@ -323,8 +323,15 @@ class MentionsView(discord.ui.View):
         # Updates section
         container.add_item(ui.TextDisplay("*Updates will be edited in this message*"))
 
+        # Build mention string for actual pings
+        mention_string = " ".join(self.mentions) if self.mentions else ""
+
         # Footer with mentions
         if self.mentions:
+            # To support V2 components, mentions must be in the view content, not the message content field.
+            # We add the raw mention string to the view for the ping to work.
+            container.add_item(ui.TextDisplay(mention_string))
+
             mentions_text = " / ".join(self.mentions)
             container.add_item(ui.TextDisplay(f"-# {mentions_text}"))
         else:
@@ -340,11 +347,7 @@ class MentionsView(discord.ui.View):
 
         # Send the message
         try:
-            # Build mention string for actual pings
-            mention_string = " ".join(self.mentions) if self.mentions else ""
-
             message = await channel.send(
-                content=mention_string if mention_string else None,
                 view=view,
                 allowed_mentions=allowed_mentions
             )
