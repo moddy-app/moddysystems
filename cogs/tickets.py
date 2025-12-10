@@ -790,87 +790,61 @@ class LegalRequestTypeView(ui.LayoutView):
         await create_legal_request_ticket(interaction, self.user, metadata)
 
 
-class SupportPanelView(ui.LayoutView):
+class SupportPanelView(ui.View):
     """Vue principale du panel de support"""
 
     def __init__(self):
         super().__init__(timeout=None)  # Pas de timeout pour le panel principal
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Moddy Support Panel**\n"
-            "Please select the category that matches your request below.\n"
-            "Our team will get back to you as soon as possible."
-        ))
+    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary, emoji="<:handshake:1448354754366537970>", custom_id="ticket:support", row=0)
+    async def support_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Afficher la vue pour choisir le type de support
+        view = SupportTypeView(interaction.user)
+        await interaction.response.send_message(
+            f"{EMOJIS['ticket']} **Création de ticket - Support**",
+            view=view,
+            ephemeral=True
+        )
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+    @discord.ui.button(label="Bug Reports", style=discord.ButtonStyle.primary, emoji="<:bug:1448354755868102726>", custom_id="ticket:bug_report", row=0)
+    async def bug_report_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Afficher la vue pour demander le code erreur
+        view = BugReportHasCodeView(interaction.user)
+        await interaction.response.send_message(
+            f"{EMOJIS['ticket']} **Création de ticket - Bug Report**",
+            view=view,
+            ephemeral=True
+        )
 
-        # Ligne 1: Support, Bug Reports
-        row1 = ui.ActionRow()
+    @discord.ui.button(label="Sanction Appeals", style=discord.ButtonStyle.primary, emoji="<:gavel:1448354751011094611>", custom_id="ticket:sanction_appeal", row=1)
+    async def sanction_appeal_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Afficher la vue pour choisir serveur/utilisateur
+        view = SanctionAppealTypeView(interaction.user)
+        await interaction.response.send_message(
+            f"{EMOJIS['ticket']} **Création de ticket - Sanction Appeal**",
+            view=view,
+            ephemeral=True
+        )
 
-        @row1.button(label="Support", style=discord.ButtonStyle.primary, emoji=EMOJIS['handshake'], custom_id="ticket:support")
-        async def support_button(interaction: discord.Interaction, button: ui.Button):
-            # Afficher la vue pour choisir le type de support
-            view = SupportTypeView(interaction.user)
-            await interaction.response.send_message(
-                f"{EMOJIS['ticket']} **Création de ticket - Support**",
-                view=view,
-                ephemeral=True
-            )
+    @discord.ui.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji="<:payments:1448354761769353288>", custom_id="ticket:payments_billing", row=1)
+    async def payments_billing_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Créer directement le ticket
+        await create_payments_billing_ticket(interaction, interaction.user, {})
 
-        @row1.button(label="Bug Reports", style=discord.ButtonStyle.primary, emoji=EMOJIS['bug'], custom_id="ticket:bug_report")
-        async def bug_report_button(interaction: discord.Interaction, button: ui.Button):
-            # Afficher la vue pour demander le code erreur
-            view = BugReportHasCodeView(interaction.user)
-            await interaction.response.send_message(
-                f"{EMOJIS['ticket']} **Création de ticket - Bug Report**",
-                view=view,
-                ephemeral=True
-            )
+    @discord.ui.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji="<:balance:1448354749110816900>", custom_id="ticket:legal_request", row=2)
+    async def legal_request_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Afficher le menu déroulant pour choisir le type de demande
+        view = LegalRequestTypeView(interaction.user)
+        await interaction.response.send_message(
+            f"{EMOJIS['ticket']} **Création de ticket - Legal Request**",
+            view=view,
+            ephemeral=True
+        )
 
-        container.add_item(row1)
-
-        # Ligne 2: Sanction Appeals, Payments & Billing
-        row2 = ui.ActionRow()
-
-        @row2.button(label="Sanction Appeals", style=discord.ButtonStyle.primary, emoji=EMOJIS['gavel'], custom_id="ticket:sanction_appeal")
-        async def sanction_appeal_button(interaction: discord.Interaction, button: ui.Button):
-            # Afficher la vue pour choisir serveur/utilisateur
-            view = SanctionAppealTypeView(interaction.user)
-            await interaction.response.send_message(
-                f"{EMOJIS['ticket']} **Création de ticket - Sanction Appeal**",
-                view=view,
-                ephemeral=True
-            )
-
-        @row2.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji=EMOJIS['payments'], custom_id="ticket:payments_billing")
-        async def payments_billing_button(interaction: discord.Interaction, button: ui.Button):
-            # Créer directement le ticket
-            await create_payments_billing_ticket(interaction, interaction.user, {})
-
-        container.add_item(row2)
-
-        # Ligne 3: Legal Requests, Other Request
-        row3 = ui.ActionRow()
-
-        @row3.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji=EMOJIS['balance'], custom_id="ticket:legal_request")
-        async def legal_request_button(interaction: discord.Interaction, button: ui.Button):
-            # Afficher le menu déroulant pour choisir le type de demande
-            view = LegalRequestTypeView(interaction.user)
-            await interaction.response.send_message(
-                f"{EMOJIS['ticket']} **Création de ticket - Legal Request**",
-                view=view,
-                ephemeral=True
-            )
-
-        @row3.button(label="Other Request", style=discord.ButtonStyle.primary, emoji=EMOJIS['question_mark'], custom_id="ticket:other_request")
-        async def other_request_button(interaction: discord.Interaction, button: ui.Button):
-            # Créer directement le ticket
-            await create_other_request_ticket(interaction, interaction.user, {})
-
-        container.add_item(row3)
-
-        self.add_item(container)
+    @discord.ui.button(label="Other Request", style=discord.ButtonStyle.primary, emoji="<:question_mark:1448354747836006564>", custom_id="ticket:other_request", row=2)
+    async def other_request_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Créer directement le ticket
+        await create_other_request_ticket(interaction, interaction.user, {})
 
 
 class TicketControlView(ui.LayoutView):
@@ -1621,9 +1595,20 @@ class Tickets(commands.Cog):
             except:
                 pass
 
+            # Créer l'embed du panel de support
+            embed = discord.Embed(
+                title=f"{EMOJIS['ticket']} Moddy Support Panel",
+                description=(
+                    "Please select the category that matches your request below.\n"
+                    "Our team will get back to you as soon as possible."
+                ),
+                color=discord.Color.blue()
+            )
+            embed.set_footer(text="Moddy Systems Support Bot")
+
             # Envoyer le panel de support
             view = SupportPanelView()
-            await message.channel.send(view=view)
+            await message.channel.send(embed=embed, view=view)
 
     @commands.command(name='archiverequest')
     async def archive_request(self, ctx: commands.Context):
