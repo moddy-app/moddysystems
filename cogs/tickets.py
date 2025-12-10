@@ -51,20 +51,30 @@ class TicketDatabase:
 
     async def connect(self):
         """Connecte aux deux bases de données"""
-        try:
-            # Connexion à la DB de Moddy
-            moddy_url = os.getenv('MODDYDB_URL')
-            if moddy_url:
+        # Connexion à la DB de Moddy
+        moddy_url = os.getenv('MODDYDB_URL')
+        if not moddy_url:
+            logger.warning("⚠️ MODDYDB_URL not set - Moddy database features will be disabled")
+            logger.warning("   (Error codes, moderation cases, and staff permissions won't work)")
+        else:
+            try:
                 self.moddy_pool = await asyncpg.create_pool(
                     moddy_url,
                     min_size=2,
                     max_size=10
                 )
                 logger.info("✅ Connected to Moddy database")
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to Moddy database: {e}")
+                logger.error("   Error codes, moderation cases, and staff permissions won't work")
 
-            # Connexion à la DB de ModdySystems
-            systems_url = os.getenv('DATABASE_URL')
-            if systems_url:
+        # Connexion à la DB de ModdySystems
+        systems_url = os.getenv('DATABASE_URL')
+        if not systems_url:
+            logger.warning("⚠️ DATABASE_URL not set - Ticket system database will be disabled")
+            logger.warning("   (Tickets won't be saved to database)")
+        else:
+            try:
                 self.systems_pool = await asyncpg.create_pool(
                     systems_url,
                     min_size=2,
@@ -87,9 +97,9 @@ class TicketDatabase:
                         )
                     ''')
                     logger.info("✅ Tickets table ready")
-
-        except Exception as e:
-            logger.error(f"❌ Database connection error: {e}")
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to ModdySystems database: {e}")
+                logger.error("   Tickets won't be saved to database")
 
     async def close(self):
         """Ferme les connexions aux bases de données"""
