@@ -82,7 +82,7 @@ class TicketDatabase:
                 )
                 logger.info("✅ Connected to ModdySystems database")
 
-                # Créer la table tickets si elle n'existe pas
+                # Create table tickets si elle n'existe pas
                 async with self.systems_pool.acquire() as conn:
                     await conn.execute('''
                         CREATE TABLE IF NOT EXISTS tickets (
@@ -109,7 +109,7 @@ class TicketDatabase:
             await self.systems_pool.close()
 
     async def get_error_info(self, error_code: str) -> Optional[Dict]:
-        """Récupère les infos d'une erreur depuis la DB Moddy"""
+        """Récupère information d'une erreur depuis la DB Moddy"""
         if not self.moddy_pool:
             return None
 
@@ -172,7 +172,7 @@ class TicketDatabase:
             return []
 
     async def get_staff_info(self, user_id: int) -> Optional[Dict]:
-        """Récupère les infos d'un staff depuis la DB Moddy"""
+        """Récupère information d'un staff depuis la DB Moddy"""
         if not self.moddy_pool:
             return None
 
@@ -191,7 +191,7 @@ class TicketDatabase:
             return None
 
     async def create_ticket(self, thread_id: int, user_id: int, category: str, metadata: Dict = None):
-        """Crée un ticket dans la DB"""
+        """Crée un ticket to DB"""
         if not self.systems_pool:
             return
 
@@ -298,7 +298,7 @@ async def get_guild_id_from_invite(invite_url: str) -> Optional[int]:
         code = invite_code
 
     try:
-        # Utiliser l'API Discord pour récupérer les infos de l'invitation
+        # Utiliser l'API Discord pour récupérer information de l'invitation
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://discord.com/api/v10/invites/{code}') as resp:
                 if resp.status == 200:
@@ -347,11 +347,11 @@ def can_manage_ticket(staff_roles: List[str], category: str) -> bool:
 
 
 # Modals
-class ErrorCodeModal(ui.Modal, title="Code Erreur"):
+class ErrorCodeModal(ui.Modal, title="Error Code"):
     """Modal pour entrer un code erreur"""
 
     error_code = ui.TextInput(
-        label="Code Erreur",
+        label="Error Code",
         placeholder="Ex: BB1FE07D",
         min_length=8,
         max_length=8,
@@ -365,7 +365,7 @@ class ErrorCodeModal(ui.Modal, title="Code Erreur"):
     async def on_submit(self, interaction: discord.Interaction):
         code = self.error_code.value.upper().strip()
 
-        # Vérifier le format
+        # Check le format
         if not re.match(r'^[A-Z0-9]{8}$', code):
             await interaction.response.send_message(
                 f"{EMOJIS['undone']} Le code erreur doit contenir exactement 8 caractères (lettres majuscules ou chiffres).",
@@ -414,11 +414,11 @@ class SupportTypeView(ui.LayoutView):
         # Boutons
         button_row = ui.ActionRow()
 
-        @button_row.button(label="Serveur", style=discord.ButtonStyle.primary)
+        @button_row.button(label="Server", style=discord.ButtonStyle.primary)
         async def server_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -428,11 +428,11 @@ class SupportTypeView(ui.LayoutView):
             modal = ServerInviteModal(self.on_server_invite_submit)
             await interaction.response.send_modal(modal)
 
-        @button_row.button(label="Utilisateur", style=discord.ButtonStyle.primary)
+        @button_row.button(label="User", style=discord.ButtonStyle.primary)
         async def user_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -444,7 +444,7 @@ class SupportTypeView(ui.LayoutView):
         async def other_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -464,7 +464,7 @@ class SupportTypeView(ui.LayoutView):
 
         if not guild_id:
             await interaction.followup.send(
-                f"{EMOJIS['undone']} Impossible de récupérer les informations du serveur. Vérifiez le lien d'invitation.",
+                f"{EMOJIS['undone']} Unable to retrieve server information. Check the invitation link.",
                 ephemeral=True
             )
             return
@@ -502,7 +502,7 @@ class BugReportHasCodeView(ui.LayoutView):
         async def yes_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -515,7 +515,7 @@ class BugReportHasCodeView(ui.LayoutView):
         async def no_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -529,12 +529,12 @@ class BugReportHasCodeView(ui.LayoutView):
         """Callback quand l'utilisateur soumet un code erreur"""
         await interaction.response.defer(ephemeral=True)
 
-        # Récupérer les infos de l'erreur
+        # Retrieve information de l'erreur
         error_info = await db.get_error_info(error_code)
 
         if not error_info:
             await interaction.followup.send(
-                f"{EMOJIS['undone']} Code erreur introuvable dans la base de données.",
+                f"{EMOJIS['undone']} Error code not found in database.",
                 ephemeral=True
             )
             return
@@ -567,11 +567,11 @@ class SanctionAppealTypeView(ui.LayoutView):
         # Boutons
         button_row = ui.ActionRow()
 
-        @button_row.button(label="Serveur", style=discord.ButtonStyle.primary)
+        @button_row.button(label="Server", style=discord.ButtonStyle.primary)
         async def server_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
@@ -584,19 +584,19 @@ class SanctionAppealTypeView(ui.LayoutView):
         async def user_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                     ephemeral=True
                 )
                 return
 
             await interaction.response.defer(ephemeral=True)
 
-            # Récupérer les cases de l'utilisateur
+            # Retrieve les cases de l'utilisateur
             cases = await db.get_user_cases(self.user.id)
 
             if not cases:
                 await interaction.followup.send(
-                    f"{EMOJIS['undone']} Vous n'avez aucune case ouverte.",
+                    f"{EMOJIS['undone']} You have no open cases.",
                     ephemeral=True
                 )
                 return
@@ -604,7 +604,7 @@ class SanctionAppealTypeView(ui.LayoutView):
             # Afficher le menu déroulant des cases
             view = CaseSelectView(self.user, cases, "user")
             await interaction.followup.send(
-                f"{EMOJIS['ticket']} **Sélection de la case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
+                f"{EMOJIS['ticket']} **Sélection of the case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
                 view=view,
                 ephemeral=True
             )
@@ -621,17 +621,17 @@ class SanctionAppealTypeView(ui.LayoutView):
 
         if not guild_id:
             await interaction.followup.send(
-                f"{EMOJIS['undone']} Impossible de récupérer les informations du serveur. Vérifiez le lien d'invitation.",
+                f"{EMOJIS['undone']} Unable to retrieve server information. Check the invitation link.",
                 ephemeral=True
             )
             return
 
-        # Récupérer les cases du serveur
+        # Retrieve les cases du serveur
         cases = await db.get_guild_cases(guild_id)
 
         if not cases:
             await interaction.followup.send(
-                f"{EMOJIS['undone']} Ce serveur n'a aucune case ouverte.",
+                f"{EMOJIS['undone']} This server has no open cases.",
                 ephemeral=True
             )
             return
@@ -639,7 +639,7 @@ class SanctionAppealTypeView(ui.LayoutView):
         # Afficher le menu déroulant des cases
         view = CaseSelectView(self.user, cases, "server", invite_link=invite)
         await interaction.followup.send(
-            f"{EMOJIS['ticket']} **Sélection de la case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
+            f"{EMOJIS['ticket']} **Sélection of the case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
             view=view,
             ephemeral=True
         )
@@ -657,7 +657,7 @@ class CaseSelectView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['gavel']} Sélection de la case**\n"
+            f"**{EMOJIS['gavel']} Sélection of the case**\n"
             f"-# {len(cases)} case(s) ouverte(s) trouvée(s)"
         ))
 
@@ -686,7 +686,7 @@ class CaseSelectView(ui.LayoutView):
         """Callback quand une case est sélectionnée"""
         if interaction.user.id != self.user.id:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                 ephemeral=True
             )
             return
@@ -702,12 +702,12 @@ class CaseSelectView(ui.LayoutView):
 
         if not selected_case:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Erreur lors de la récupération de la case.",
+                f"{EMOJIS['undone']} Error retrieving the case.",
                 ephemeral=True
             )
             return
 
-        # Créer le ticket
+        # Create le ticket
         metadata = {
             "case_id": case_id,
             "case_info": selected_case,
@@ -776,14 +776,14 @@ class LegalRequestTypeView(ui.LayoutView):
         """Callback quand un type de demande légale est sélectionné"""
         if interaction.user.id != self.user.id:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Seul l'utilisateur ayant initié cette action peut répondre.",
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                 ephemeral=True
             )
             return
 
         legal_type = interaction.data['values'][0]
 
-        # Créer le ticket
+        # Create le ticket
         metadata = {
             "legal_type": legal_type
         }
@@ -828,7 +828,7 @@ class SupportPanelView(ui.View):
 
     @discord.ui.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji="<:payments:1448354761769353288>", custom_id="ticket:payments_billing", row=1)
     async def payments_billing_button(self, interaction: discord.Interaction, button: ui.Button):
-        # Créer directement le ticket
+        # Create directement le ticket
         await create_payments_billing_ticket(interaction, interaction.user, {})
 
     @discord.ui.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji="<:balance:1448354749110816900>", custom_id="ticket:legal_request", row=2)
@@ -843,12 +843,12 @@ class SupportPanelView(ui.View):
 
     @discord.ui.button(label="Other Request", style=discord.ButtonStyle.primary, emoji="<:question_mark:1448354747836006564>", custom_id="ticket:other_request", row=2)
     async def other_request_button(self, interaction: discord.Interaction, button: ui.Button):
-        # Créer directement le ticket
+        # Create directement le ticket
         await create_other_request_ticket(interaction, interaction.user, {})
 
 
 class TicketControlView(ui.LayoutView):
-    """Vue avec les boutons Claim et Archive pour les tickets"""
+    """Vue with buttons Claim et Archive pour les tickets"""
 
     def __init__(self, thread_id: int, category: str, is_claimed: bool = False):
         super().__init__(timeout=None)
@@ -880,103 +880,103 @@ class TicketControlView(ui.LayoutView):
 
     async def handle_claim(self, interaction: discord.Interaction):
         """Gère le claim/unclaim d'un ticket"""
-        # Récupérer les infos du staff
+        # Retrieve information du staff
         staff_info = await db.get_staff_info(interaction.user.id)
 
         if not staff_info:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Vous n'êtes pas membre du staff.",
+                f"{EMOJIS['undone']} You are not a staff member.",
                 ephemeral=True
             )
             return
 
         staff_roles = get_staff_roles(staff_info)
 
-        # Vérifier les permissions
+        # Check les permissions
         if not can_manage_ticket(staff_roles, self.category):
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Vous n'avez pas la permission de gérer ce type de ticket.",
+                f"{EMOJIS['undone']} You do not have permission to manage this type of ticket.",
                 ephemeral=True
             )
             return
 
-        # Récupérer le ticket
+        # Retrieve le ticket
         ticket = await db.get_ticket(self.thread_id)
 
         if not ticket:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Ticket introuvable.",
+                f"{EMOJIS['undone']} Ticket not found.",
                 ephemeral=True
             )
             return
 
         # Si le ticket est déjà claim
         if ticket['claimed_by']:
-            # Vérifier si c'est le même staff ou un supervisor/manager
+            # Check si c'est le même staff ou un supervisor/manager
             is_supervisor_or_manager = 'Manager' in staff_roles or any(role.startswith('Supervisor_') for role in staff_roles)
 
             if ticket['claimed_by'] == interaction.user.id or is_supervisor_or_manager:
                 # Unclaim
                 await db.unclaim_ticket(self.thread_id)
                 await interaction.response.send_message(
-                    f"{EMOJIS['done']} Ticket unclaimed avec succès.",
+                    f"{EMOJIS['done']} Ticket unclaimed successfully.",
                     ephemeral=True
                 )
 
-                # Créer une nouvelle vue avec le bon label
+                # Create une nouvelle vue avec le bon label
                 new_view = TicketControlView(self.thread_id, self.category, is_claimed=False)
                 await interaction.message.edit(view=new_view)
             else:
                 claimed_user = interaction.guild.get_member(ticket['claimed_by'])
                 claimed_name = claimed_user.mention if claimed_user else f"<@{ticket['claimed_by']}>"
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Ce ticket est déjà claim par {claimed_name}. Seul un Supervisor/Manager peut l'unclaim.",
+                    f"{EMOJIS['undone']} This ticket is already claimed by {claimed_name}. Only a Supervisor/Manager can unclaim it.",
                     ephemeral=True
                 )
         else:
             # Claim
             await db.claim_ticket(self.thread_id, interaction.user.id)
             await interaction.response.send_message(
-                f"{EMOJIS['done']} Ticket claim avec succès.",
+                f"{EMOJIS['done']} Ticket claimed successfully.",
                 ephemeral=True
             )
 
-            # Créer une nouvelle vue avec le bon label
+            # Create une nouvelle vue avec le bon label
             new_view = TicketControlView(self.thread_id, self.category, is_claimed=True)
             await interaction.message.edit(view=new_view)
 
     async def handle_archive(self, interaction: discord.Interaction):
         """Gère l'archivage d'un ticket"""
-        # Récupérer les infos du staff
+        # Retrieve information du staff
         staff_info = await db.get_staff_info(interaction.user.id)
 
         if not staff_info:
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Vous n'êtes pas membre du staff.",
+                f"{EMOJIS['undone']} You are not a staff member.",
                 ephemeral=True
             )
             return
 
         staff_roles = get_staff_roles(staff_info)
 
-        # Vérifier les permissions
+        # Check les permissions
         if not can_manage_ticket(staff_roles, self.category):
             await interaction.response.send_message(
-                f"{EMOJIS['undone']} Vous n'avez pas la permission de gérer ce type de ticket.",
+                f"{EMOJIS['undone']} You do not have permission to manage this type of ticket.",
                 ephemeral=True
             )
             return
 
-        # Archiver le ticket dans la DB
+        # Archive le ticket to DB
         await db.archive_ticket(self.thread_id)
 
-        # Verrouiller le thread
+        # Lock thread
         thread = interaction.guild.get_thread(self.thread_id)
         if thread:
             await thread.edit(archived=True, locked=True)
 
         await interaction.response.send_message(
-            f"{EMOJIS['done']} Ticket archivé avec succès.",
+            f"{EMOJIS['done']} Ticket archived successfully.",
             ephemeral=True
         )
 
@@ -1006,34 +1006,34 @@ class ArchiveRequestView(ui.LayoutView):
             custom_id=f"archive_request:yes:{thread_id}"
         )
         async def yes_button(interaction: discord.Interaction, button: ui.Button):
-            # Récupérer le ticket
+            # Retrieve le ticket
             ticket = await db.get_ticket(self.thread_id)
 
             if not ticket:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Ticket introuvable.",
+                    f"{EMOJIS['undone']} Ticket not found.",
                     ephemeral=True
                 )
                 return
 
-            # Vérifier que c'est l'utilisateur du ticket
+            # Check que c'est l'utilisateur du ticket
             if interaction.user.id != ticket['user_id']:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant créé le ticket peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
                     ephemeral=True
                 )
                 return
 
-            # Archiver le ticket
+            # Archive le ticket
             await db.archive_ticket(self.thread_id)
 
-            # Verrouiller le thread
+            # Lock thread
             thread = interaction.guild.get_thread(self.thread_id)
             if thread:
                 await thread.edit(archived=True, locked=True)
 
             await interaction.response.send_message(
-                f"{EMOJIS['done']} Le ticket a été archivé.",
+                f"{EMOJIS['done']} The ticket has been archived.",
                 ephemeral=False
             )
 
@@ -1044,26 +1044,26 @@ class ArchiveRequestView(ui.LayoutView):
             custom_id=f"archive_request:no:{thread_id}"
         )
         async def no_button(interaction: discord.Interaction, button: ui.Button):
-            # Récupérer le ticket
+            # Retrieve le ticket
             ticket = await db.get_ticket(self.thread_id)
 
             if not ticket:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Ticket introuvable.",
+                    f"{EMOJIS['undone']} Ticket not found.",
                     ephemeral=True
                 )
                 return
 
-            # Vérifier que c'est l'utilisateur du ticket
+            # Check que c'est l'utilisateur du ticket
             if interaction.user.id != ticket['user_id']:
                 await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Seul l'utilisateur ayant créé le ticket peut répondre.",
+                    f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
                     ephemeral=True
                 )
                 return
 
             await interaction.response.send_message(
-                f"{EMOJIS['done']} La demande d'archivage a été refusée.",
+                f"{EMOJIS['done']} The archive request has been declined.",
                 ephemeral=False
             )
 
@@ -1076,11 +1076,11 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
     """Crée un ticket de support"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1088,59 +1088,48 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
     # Nom du thread
     thread_name = f"{EMOJIS['ticket']} Support - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['ticket']} Nouveau Ticket - Support",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.blue(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['ticket']} New Ticket - Support\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "support")
     await thread.send(
-        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Créer l'embed avec les infos collectées
-    info_embed = discord.Embed(
-        title=f"{EMOJIS['ticket']} Informations du ticket",
-        color=discord.Color.green()
-    )
+    # Message with information collectées
+    info_parts = [f"### {EMOJIS['ticket']} Ticket Information\n"]
 
-    info_embed.add_field(
-        name="Type de support",
-        value=metadata.get('type', 'Inconnu').capitalize(),
-        inline=True
-    )
+    support_type = metadata.get('type', 'Unknown').capitalize()
+    info_parts.append(f"**Support Type:** {support_type}")
 
     if metadata.get('type') == 'server' and metadata.get('guild_id'):
-        info_embed.add_field(
-            name="Serveur concerné",
-            value=f"ID: `{metadata['guild_id']}`\nInvitation: {metadata.get('invite_link', 'N/A')}",
-            inline=False
-        )
+        info_parts.append(f"\n**Concerned Server:**")
+        info_parts.append(f"• ID: `{metadata['guild_id']}`")
+        info_parts.append(f"• Invite: {metadata.get('invite_link', 'N/A')}")
 
-    await thread.send(embed=info_embed)
+    await thread.send('\n'.join(info_parts))
 
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "support", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1149,11 +1138,11 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
     """Crée un ticket de bug report"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1161,92 +1150,70 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
     # Nom du thread
     thread_name = f"{EMOJIS['bug']} Bug Report - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['bug']} Nouveau Ticket - Bug Report",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.red(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['bug']} New Ticket - Bug Report\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "bug_report")
     await thread.send(
-        content=f"<@&{ROLES['DEV']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['DEV']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Créer l'embed avec les infos collectées
-    info_embed = discord.Embed(
-        title=f"{EMOJIS['ticket']} Informations du ticket",
-        color=discord.Color.orange()
-    )
+    # Message with information collectées
+    info_parts = [f"### {EMOJIS['ticket']} Ticket Information\n"]
 
     if metadata.get('error_code'):
         error_info = metadata.get('error_info', {})
-
-        info_embed.add_field(
-            name="Code Erreur",
-            value=f"`{metadata['error_code']}`",
-            inline=True
-        )
+        info_parts.append(f"**Error Code:** `{metadata['error_code']}`\n")
 
         if error_info:
-            # Contexte de l'erreur (PAS le traceback)
-            context_parts = []
+            # Error Context (PAS le traceback)
+            info_parts.append("**Error Context:**")
 
             if error_info.get('command'):
-                context_parts.append(f"**Commande:** `{error_info['command']}`")
+                info_parts.append(f"• **Command:** `{error_info['command']}`")
 
             if error_info.get('user_id'):
-                context_parts.append(f"**Utilisateur:** <@{error_info['user_id']}> (`{error_info['user_id']}`)")
+                info_parts.append(f"• **User:** <@{error_info['user_id']}> (`{error_info['user_id']}`)")
 
             if error_info.get('guild_id'):
-                context_parts.append(f"**Serveur:** `{error_info['guild_id']}`")
+                info_parts.append(f"• **Server:** `{error_info['guild_id']}`")
 
             if error_info.get('file_source') and error_info.get('line_number'):
-                context_parts.append(f"**Fichier:** `{error_info['file_source']}:{error_info['line_number']}`")
+                info_parts.append(f"• **File:** `{error_info['file_source']}:{error_info['line_number']}`")
 
             if error_info.get('error_type'):
-                context_parts.append(f"**Type:** `{error_info['error_type']}`")
+                info_parts.append(f"• **Type:** `{error_info['error_type']}`")
 
             if error_info.get('timestamp'):
                 timestamp = int(error_info['timestamp'].timestamp()) if hasattr(error_info['timestamp'], 'timestamp') else 0
                 if timestamp:
-                    context_parts.append(f"**Quand:** <t:{timestamp}:F>")
-
-            if context_parts:
-                info_embed.add_field(
-                    name="Contexte de l'erreur",
-                    value="\n".join(context_parts),
-                    inline=False
-                )
+                    info_parts.append(f"• **When:** <t:{timestamp}:F>")
     else:
-        info_embed.add_field(
-            name="Code Erreur",
-            value="Aucun code erreur fourni",
-            inline=False
-        )
+        info_parts.append("**Error Code:** No error code provided")
 
-    await thread.send(embed=info_embed)
+    await thread.send('\n'.join(info_parts))
 
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "bug_report", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1255,11 +1222,11 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
     """Crée un ticket de sanction appeal"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1267,104 +1234,65 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
     # Nom du thread
     thread_name = f"{EMOJIS['gavel']} Sanction Appeal - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['gavel']} Nouveau Ticket - Sanction Appeal",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.orange(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['gavel']} New Ticket - Sanction Appeal\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "sanction_appeal")
     await thread.send(
-        content=f"<@&{ROLES['MODERATOR']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['MODERATOR']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Créer l'embed avec les infos de la case
+    # Message with information of the case
     case_info = metadata.get('case_info', {})
-
-    info_embed = discord.Embed(
-        title=f"{EMOJIS['ticket']} Informations de la case",
-        color=discord.Color.red()
-    )
+    info_parts = [f"### {EMOJIS['ticket']} Case Information\n"]
 
     if case_info:
-        info_embed.add_field(
-            name="Case ID",
-            value=f"`{case_info['case_id']}`",
-            inline=True
-        )
-
-        info_embed.add_field(
-            name="Type de case",
-            value=case_info.get('case_type', 'N/A').capitalize(),
-            inline=True
-        )
-
-        info_embed.add_field(
-            name="Type de sanction",
-            value=case_info.get('sanction_type', 'N/A').replace('_', ' ').title(),
-            inline=True
-        )
-
-        info_embed.add_field(
-            name="Statut",
-            value=case_info.get('status', 'N/A').capitalize(),
-            inline=True
-        )
+        info_parts.append(f"**Case ID:** `{case_info['case_id']}`")
+        info_parts.append(f"**Case Type:** {case_info.get('case_type', 'N/A').capitalize()}")
+        info_parts.append(f"**Sanction Type:** {case_info.get('sanction_type', 'N/A').replace('_', ' ').title()}")
+        info_parts.append(f"**Status:** {case_info.get('status', 'N/A').capitalize()}\n")
 
         entity_type = case_info.get('entity_type', 'N/A')
         entity_id = case_info.get('entity_id', 'N/A')
 
         if entity_type == 'user':
-            info_embed.add_field(
-                name="Utilisateur sanctionné",
-                value=f"<@{entity_id}> (`{entity_id}`)",
-                inline=True
-            )
+            info_parts.append(f"**Sanctioned User:** <@{entity_id}> (`{entity_id}`)")
         elif entity_type == 'guild':
-            info_embed.add_field(
-                name="Serveur sanctionné",
-                value=f"`{entity_id}`",
-                inline=True
-            )
+            info_parts.append(f"**Sanctioned Server:** `{entity_id}`")
 
         if case_info.get('reason'):
-            info_embed.add_field(
-                name="Raison",
-                value=case_info['reason'][:1024],
-                inline=False
-            )
+            info_parts.append(f"\n**Reason:**\n{case_info['reason'][:1024]}")
 
         if case_info.get('created_by'):
             created_timestamp = int(case_info['created_at'].timestamp()) if case_info.get('created_at') and hasattr(case_info['created_at'], 'timestamp') else 0
-            info_embed.add_field(
-                name="Créée par",
-                value=f"<@{case_info['created_by']}>" + (f" (<t:{created_timestamp}:R>)" if created_timestamp else ""),
-                inline=False
-            )
+            created_by_text = f"<@{case_info['created_by']}>"
+            if created_timestamp:
+                created_by_text += f" (<t:{created_timestamp}:R>)"
+            info_parts.append(f"\n**Created by:** {created_by_text}")
 
-    await thread.send(embed=info_embed)
+    await thread.send('\n'.join(info_parts))
 
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "sanction_appeal", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1373,11 +1301,11 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
     """Crée un ticket de legal request"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1385,34 +1313,31 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
     # Nom du thread
     thread_name = f"{EMOJIS['balance']} Legal Request - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['balance']} Nouveau Ticket - Legal Request",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.purple(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['balance']} New Ticket - Legal Request\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "legal_request")
     await thread.send(
-        content=f"<@&{ROLES['MANAGER']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['MANAGER']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Créer l'embed avec le type de demande
+    # Message with le type de demande
     legal_type = metadata.get('legal_type', 'unknown')
 
     legal_types_names = {
@@ -1422,24 +1347,18 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
         'objection': 'Objection'
     }
 
-    info_embed = discord.Embed(
-        title=f"{EMOJIS['ticket']} Informations du ticket",
-        color=discord.Color.purple()
+    info_message = (
+        f"**{EMOJIS['ticket']} Ticket Information**\n\n"
+        f"**Legal Request Type:** {legal_types_names.get(legal_type, legal_type.capitalize())}"
     )
 
-    info_embed.add_field(
-        name="Type de demande légale",
-        value=legal_types_names.get(legal_type, legal_type.capitalize()),
-        inline=False
-    )
+    await thread.send(info_message)
 
-    await thread.send(embed=info_embed)
-
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "legal_request", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1448,11 +1367,11 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
     """Crée un ticket de payments & billing"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1460,38 +1379,35 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
     # Nom du thread
     thread_name = f"{EMOJIS['payments']} Payments & Billing - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['payments']} Nouveau Ticket - Payments & Billing",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.gold(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['payments']} New Ticket - Payments & Billing\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "payments_billing")
     await thread.send(
-        content=f"<@&{ROLES['MANAGER']}> <@&{ROLES['SUPERVISOR']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['MANAGER']}> <@&{ROLES['SUPERVISOR']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "payments_billing", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1500,11 +1416,11 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
     """Crée un ticket de other request"""
     await interaction.response.defer(ephemeral=True)
 
-    # Créer le thread privé
+    # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
     if not channel:
         await interaction.followup.send(
-            f"{EMOJIS['undone']} Salon de support introuvable.",
+            f"{EMOJIS['undone']} Support channel not found.",
             ephemeral=True
         )
         return
@@ -1512,38 +1428,35 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
     # Nom du thread
     thread_name = f"{EMOJIS['question_mark']} Other Request - {user.name}"
 
-    # Créer le thread
+    # Create thread
     thread = await channel.create_thread(
         name=thread_name,
         type=discord.ChannelType.private_thread,
-        auto_archive_duration=10080  # 7 jours
+        auto_archive_duration=10080  # 7 days
     )
 
-    # Ajouter l'utilisateur au thread
+    # Add user to thread
     await thread.add_user(user)
 
-    # Créer l'embed principal
-    embed = discord.Embed(
-        title=f"{EMOJIS['question_mark']} Nouveau Ticket - Other Request",
-        description=f"Ticket créé par {user.mention}",
-        color=discord.Color.light_grey(),
-        timestamp=discord.utils.utcnow()
+    # Main message avec boutons
+    main_message = (
+        f"### {EMOJIS['question_mark']} New Ticket - Other Request\n"
+        f"Ticket created by {user.mention}\n"
+        f"**User:** {user.mention} (`{user.id}`)\n"
+        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
     )
-    embed.add_field(name="Utilisateur", value=f"{user.mention} (`{user.id}`)", inline=False)
 
-    # Envoyer l'embed avec les boutons
     view = TicketControlView(thread.id, "other_request")
     await thread.send(
-        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}",
-        embed=embed,
+        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}\n\n{main_message}",
         view=view
     )
 
-    # Enregistrer dans la DB
+    # Save to DB
     await db.create_ticket(thread.id, user.id, "other_request", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Votre ticket a été créé : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
         ephemeral=True
     )
 
@@ -1573,90 +1486,85 @@ class Tickets(commands.Cog):
         if message.author.bot:
             return
 
-        # Vérifier si c'est dans le bon salon
+        # Check si c'est dans le bon salon
         if message.channel.id != SUPPORT_CHANNEL_ID:
             return
 
-        # Vérifier si c'est la commande !tickets
+        # Check si c'est la commande !tickets
         if message.content.strip() == '!tickets':
-            # Vérifier si l'utilisateur est un staff
+            # Check si l'utilisateur est un staff
             staff_info = await db.get_staff_info(message.author.id)
 
             if not staff_info:
                 await message.reply(
-                    f"{EMOJIS['undone']} Vous n'avez pas la permission d'utiliser cette commande.",
+                    f"{EMOJIS['undone']} You do not have permission to use this command.",
                     delete_after=5
                 )
                 return
 
-            # Supprimer le message de commande
+            # Delete command message
             try:
                 await message.delete()
             except:
                 pass
 
-            # Créer l'embed du panel de support
-            embed = discord.Embed(
-                title=f"{EMOJIS['ticket']} Moddy Support Panel",
-                description=(
-                    "Please select the category that matches your request below.\n"
-                    "Our team will get back to you as soon as possible."
-                ),
-                color=discord.Color.blue()
+            # Send support panel (juste texte + boutons)
+            content = (
+                f"### {EMOJIS['ticket']} Moddy Support Panel\n"
+                "Please select the category that matches your request below.\n"
+                "Our team will get back to you as soon as possible."
             )
-            embed.set_footer(text="Moddy Systems Support Bot")
 
-            # Envoyer le panel de support
             view = SupportPanelView()
-            await message.channel.send(embed=embed, view=view)
+            await message.channel.send(content=content, view=view)
 
     @commands.command(name='archiverequest')
     async def archive_request(self, ctx: commands.Context):
-        """Commande pour demander l'archivage d'un ticket"""
-        # Vérifier si c'est dans un thread
+        """Command pour demander l'archivage d'un ticket"""
+        # Check si c'est dans un thread
         if not isinstance(ctx.channel, discord.Thread):
             await ctx.reply(
-                f"{EMOJIS['undone']} Cette commande ne peut être utilisée que dans un thread de ticket.",
+                f"{EMOJIS['undone']} This command can only be used in a ticket thread.",
                 delete_after=5
             )
             return
 
-        # Vérifier si l'utilisateur est un staff
+        # Check si l'utilisateur est un staff
         staff_info = await db.get_staff_info(ctx.author.id)
 
         if not staff_info:
             await ctx.reply(
-                f"{EMOJIS['undone']} Vous n'avez pas la permission d'utiliser cette commande.",
+                f"{EMOJIS['undone']} You do not have permission to use this command.",
                 delete_after=5
             )
             return
 
-        # Récupérer le ticket
+        # Retrieve le ticket
         ticket = await db.get_ticket(ctx.channel.id)
 
         if not ticket:
             await ctx.reply(
-                f"{EMOJIS['undone']} Ce thread n'est pas un ticket valide.",
+                f"{EMOJIS['undone']} This thread is not a valid ticket.",
                 delete_after=5
             )
             return
 
-        # Vérifier les permissions
+        # Check les permissions
         staff_roles = get_staff_roles(staff_info)
         if not can_manage_ticket(staff_roles, ticket['category']):
             await ctx.reply(
-                f"{EMOJIS['undone']} Vous n'avez pas la permission de gérer ce type de ticket.",
+                f"{EMOJIS['undone']} You do not have permission to manage this type of ticket.",
                 delete_after=5
             )
             return
 
-        # Supprimer le message de commande
+        # Delete command message
         try:
             await ctx.message.delete()
         except:
             pass
 
-        # Envoyer la demande d'archivage
+        # Send la demande d'archivage
         view = ArchiveRequestView(ctx.channel.id)
         await ctx.send(view=view)
 
