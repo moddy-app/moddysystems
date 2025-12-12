@@ -43,15 +43,15 @@ EMOJIS = {
 
 
 class TicketDatabase:
-    """Gère les connexions aux bases de données"""
+    """Manages database connections"""
 
     def __init__(self):
         self.moddy_pool: Optional[asyncpg.Pool] = None
         self.systems_pool: Optional[asyncpg.Pool] = None
 
     async def connect(self):
-        """Connecte aux deux bases de données"""
-        # Connexion à la DB de Moddy
+        """Connects to both databases"""
+        # Connection to Moddy DB
         moddy_url = os.getenv('MODDYDB_URL')
         if not moddy_url:
             logger.warning("⚠️ MODDYDB_URL not set - Moddy database features will be disabled")
@@ -68,7 +68,7 @@ class TicketDatabase:
                 logger.error(f"❌ Failed to connect to Moddy database: {e}")
                 logger.error("   Error codes, moderation cases, and staff permissions won't work")
 
-        # Connexion à la DB de ModdySystems
+        # Connection to ModdySystems DB
         systems_url = os.getenv('DATABASE_URL')
         if not systems_url:
             logger.warning("⚠️ DATABASE_URL not set - Ticket system database will be disabled")
@@ -82,7 +82,7 @@ class TicketDatabase:
                 )
                 logger.info("✅ Connected to ModdySystems database")
 
-                # Create table tickets si elle n'existe pas
+                # Create tickets table if it doesn't exist
                 async with self.systems_pool.acquire() as conn:
                     await conn.execute('''
                         CREATE TABLE IF NOT EXISTS tickets (
@@ -102,14 +102,14 @@ class TicketDatabase:
                 logger.error("   Tickets won't be saved to database")
 
     async def close(self):
-        """Ferme les connexions aux bases de données"""
+        """Closes database connections"""
         if self.moddy_pool:
             await self.moddy_pool.close()
         if self.systems_pool:
             await self.systems_pool.close()
 
     async def get_error_info(self, error_code: str) -> Optional[Dict]:
-        """Récupère information d'une erreur depuis la DB Moddy"""
+        """Retrieves error information from Moddy DB"""
         if not self.moddy_pool:
             return None
 
@@ -128,7 +128,7 @@ class TicketDatabase:
             return None
 
     async def get_user_cases(self, user_id: int) -> List[Dict]:
-        """Récupère les cases ouvertes d'un utilisateur"""
+        """Retrieves open cases for a user"""
         if not self.moddy_pool:
             return []
 
@@ -150,7 +150,7 @@ class TicketDatabase:
             return []
 
     async def get_guild_cases(self, guild_id: int) -> List[Dict]:
-        """Récupère les cases ouvertes d'un serveur"""
+        """Retrieves open cases for a server"""
         if not self.moddy_pool:
             return []
 
@@ -172,7 +172,7 @@ class TicketDatabase:
             return []
 
     async def get_staff_info(self, user_id: int) -> Optional[Dict]:
-        """Récupère information d'un staff depuis la DB Moddy"""
+        """Retrieves staff information from Moddy DB"""
         if not self.moddy_pool:
             return None
 
@@ -191,7 +191,7 @@ class TicketDatabase:
             return None
 
     async def create_ticket(self, thread_id: int, user_id: int, category: str, metadata: Dict = None):
-        """Crée un ticket to DB"""
+        """Creates a ticket in DB"""
         if not self.systems_pool:
             return
 
@@ -208,7 +208,7 @@ class TicketDatabase:
             logger.error(f"Error creating ticket: {e}")
 
     async def get_ticket(self, thread_id: int) -> Optional[Dict]:
-        """Récupère un ticket depuis la DB"""
+        """Retrieves a ticket from DB"""
         if not self.systems_pool:
             return None
 
@@ -227,7 +227,7 @@ class TicketDatabase:
             return None
 
     async def claim_ticket(self, thread_id: int, user_id: int):
-        """Claim un ticket"""
+        """Claims a ticket"""
         if not self.systems_pool:
             return
 
@@ -241,7 +241,7 @@ class TicketDatabase:
             logger.error(f"Error claiming ticket: {e}")
 
     async def unclaim_ticket(self, thread_id: int):
-        """Unclaim un ticket"""
+        """Unclaims a ticket"""
         if not self.systems_pool:
             return
 
@@ -255,7 +255,7 @@ class TicketDatabase:
             logger.error(f"Error unclaiming ticket: {e}")
 
     async def archive_ticket(self, thread_id: int):
-        """Archive un ticket"""
+        """Archives a ticket"""
         if not self.systems_pool:
             return
 
@@ -269,17 +269,17 @@ class TicketDatabase:
             logger.error(f"Error archiving ticket: {e}")
 
 
-# Instance globale de la database
+# Global database instance
 db = TicketDatabase()
 
 
-# Fonctions utilitaires
+# Utility functions
 async def get_guild_id_from_invite(invite_url: str) -> Optional[int]:
-    """Extrait l'ID du serveur depuis un lien d'invitation"""
-    # Extraire le code d'invitation
+    """Extracts server ID from invitation link"""
+    # Extract invitation code
     invite_code = invite_url.strip()
 
-    # Patterns pour les liens Discord
+    # Patterns for Discord links
     patterns = [
         r'discord\.gg/([a-zA-Z0-9-]+)',
         r'discord\.com/invite/([a-zA-Z0-9-]+)',
@@ -294,11 +294,11 @@ async def get_guild_id_from_invite(invite_url: str) -> Optional[int]:
             break
 
     if not code:
-        # Si c'est juste le code
+        # If it's just the code
         code = invite_code
 
     try:
-        # Utiliser l'API Discord pour récupérer information de l'invitation
+        # Use Discord API to retrieve invitation information
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://discord.com/api/v10/invites/{code}') as resp:
                 if resp.status == 200:
@@ -312,7 +312,7 @@ async def get_guild_id_from_invite(invite_url: str) -> Optional[int]:
 
 
 def get_staff_roles(staff_info: Optional[Dict]) -> List[str]:
-    """Extrait les rôles d'un staff depuis ses infos"""
+    """Extracts staff roles from their information"""
     if not staff_info or 'roles' not in staff_info:
         return []
 
@@ -323,12 +323,12 @@ def get_staff_roles(staff_info: Optional[Dict]) -> List[str]:
 
 
 def can_manage_ticket(staff_roles: List[str], category: str) -> bool:
-    """Vérifie si un staff peut gérer un ticket d'une catégorie donnée"""
-    # Manager et Supervisor peuvent tout gérer
+    """Checks if a staff member can manage a ticket of a given category"""
+    # Manager and Supervisor can manage everything
     if 'Manager' in staff_roles or 'Supervisor_Mod' in staff_roles or 'Supervisor_Com' in staff_roles or 'Supervisor_Sup' in staff_roles:
         return True
 
-    # Permissions par catégorie
+    # Permissions by category
     permissions = {
         'support': ['Support'],
         'bug_report': ['Dev'],
@@ -376,12 +376,12 @@ class ErrorCodeModal(ui.Modal, title="Error Code"):
         await self.callback_func(interaction, code)
 
 
-class ServerInviteModal(ui.Modal, title="Lien d'invitation du serveur"):
-    """Modal pour entrer un lien d'invitation Discord"""
+class ServerInviteModal(ui.Modal, title="Server Invitation Link"):
+    """Modal to enter a Discord invitation link"""
 
     invite_link = ui.TextInput(
-        label="Lien d'invitation",
-        placeholder="Ex: discord.gg/abc123 ou https://discord.gg/abc123",
+        label="Invitation Link",
+        placeholder="Ex: discord.gg/abc123 or https://discord.gg/abc123",
         required=True
     )
 
@@ -405,13 +405,13 @@ class SupportTypeView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Création de ticket - Support**\n"
-            "-# Veuillez sélectionner le type de support dont vous avez besoin"
+            f"**{EMOJIS['ticket']} Creating Ticket - Support**\n"
+            "-# Please select the type of support you need"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Boutons
+        # Buttons
         button_row = ui.ActionRow()
 
         @button_row.button(label="Server", style=discord.ButtonStyle.primary)
@@ -424,7 +424,7 @@ class SupportTypeView(ui.LayoutView):
                 return
 
             self.selected_type = "server"
-            # Demander le lien d'invitation
+            # Ask for invitation link
             modal = ServerInviteModal(self.on_server_invite_submit)
             await interaction.response.send_modal(modal)
 
@@ -440,7 +440,7 @@ class SupportTypeView(ui.LayoutView):
             self.selected_type = "user"
             await self.create_ticket(interaction, {"type": "user"})
 
-        @button_row.button(label="Autre", style=discord.ButtonStyle.primary)
+        @button_row.button(label="Other", style=discord.ButtonStyle.primary)
         async def other_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
@@ -489,16 +489,16 @@ class BugReportHasCodeView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Création de ticket - Bug Report**\n"
-            "-# Avez-vous un code erreur à fournir ?"
+            f"**{EMOJIS['ticket']} Creating Ticket - Bug Report**\n"
+            "-# Do you have an error code to provide?"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Boutons
+        # Buttons
         button_row = ui.ActionRow()
 
-        @button_row.button(label="Oui, j'ai un code erreur", style=discord.ButtonStyle.primary)
+        @button_row.button(label="Yes, I have an error code", style=discord.ButtonStyle.primary)
         async def yes_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
@@ -507,11 +507,11 @@ class BugReportHasCodeView(ui.LayoutView):
                 )
                 return
 
-            # Afficher le modal pour entrer le code
+            # Show modal to enter the code
             modal = ErrorCodeModal(self.on_error_code_submit)
             await interaction.response.send_modal(modal)
 
-        @button_row.button(label="Non, je n'ai pas de code", style=discord.ButtonStyle.secondary)
+        @button_row.button(label="No, I don't have a code", style=discord.ButtonStyle.secondary)
         async def no_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
@@ -558,13 +558,13 @@ class SanctionAppealTypeView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Création de ticket - Sanction Appeal**\n"
-            "-# Souhaitez-vous faire appel d'une sanction concernant un serveur ou vous-même ?"
+            f"**{EMOJIS['ticket']} Creating Ticket - Sanction Appeal**\n"
+            "-# Do you want to appeal a sanction concerning a server or yourself?"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Boutons
+        # Buttons
         button_row = ui.ActionRow()
 
         @button_row.button(label="Server", style=discord.ButtonStyle.primary)
@@ -576,11 +576,11 @@ class SanctionAppealTypeView(ui.LayoutView):
                 )
                 return
 
-            # Demander le lien d'invitation
+            # Ask for invitation link
             modal = ServerInviteModal(self.on_server_invite_submit)
             await interaction.response.send_modal(modal)
 
-        @button_row.button(label="Moi-même (utilisateur)", style=discord.ButtonStyle.primary)
+        @button_row.button(label="Myself (user)", style=discord.ButtonStyle.primary)
         async def user_button(interaction: discord.Interaction, button: ui.Button):
             if interaction.user.id != self.user.id:
                 await interaction.response.send_message(
@@ -591,7 +591,7 @@ class SanctionAppealTypeView(ui.LayoutView):
 
             await interaction.response.defer(ephemeral=True)
 
-            # Retrieve les cases de l'utilisateur
+            # Retrieve user cases
             cases = await db.get_user_cases(self.user.id)
 
             if not cases:
@@ -601,10 +601,10 @@ class SanctionAppealTypeView(ui.LayoutView):
                 )
                 return
 
-            # Afficher le menu déroulant des cases
+            # Show dropdown menu of cases
             view = CaseSelectView(self.user, cases, "user")
             await interaction.followup.send(
-                f"{EMOJIS['ticket']} **Sélection of the case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
+                f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
                 view=view,
                 ephemeral=True
             )
@@ -626,7 +626,7 @@ class SanctionAppealTypeView(ui.LayoutView):
             )
             return
 
-        # Retrieve les cases du serveur
+        # Retrieve server cases
         cases = await db.get_guild_cases(guild_id)
 
         if not cases:
@@ -636,10 +636,10 @@ class SanctionAppealTypeView(ui.LayoutView):
             )
             return
 
-        # Afficher le menu déroulant des cases
+        # Show dropdown menu of cases
         view = CaseSelectView(self.user, cases, "server", invite_link=invite)
         await interaction.followup.send(
-            f"{EMOJIS['ticket']} **Sélection of the case**\nVeuillez sélectionner la case pour laquelle vous souhaitez faire appel :",
+            f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
             view=view,
             ephemeral=True
         )
@@ -657,20 +657,20 @@ class CaseSelectView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['gavel']} Sélection of the case**\n"
-            f"-# {len(cases)} case(s) ouverte(s) trouvée(s)"
+            f"**{EMOJIS['gavel']} Case Selection**\n"
+            f"-# {len(cases)} open case(s) found"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Menu déroulant
+        # Dropdown menu
         select_row = ui.ActionRow()
         case_select = ui.Select(
-            placeholder="Sélectionnez une case...",
+            placeholder="Select a case...",
             options=[
                 discord.SelectOption(
                     label=f"Case {case['case_id']} - {case['sanction_type']}",
-                    description=f"{case['reason'][:100] if case['reason'] else 'Pas de raison'}",
+                    description=f"{case['reason'][:100] if case['reason'] else 'No reason'}",
                     value=case['case_id']
                 )
                 for case in cases[:25]  # Max 25 options
@@ -729,16 +729,16 @@ class LegalRequestTypeView(ui.LayoutView):
 
         container = ui.Container()
         container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Création de ticket - Legal Request**\n"
-            "-# Veuillez sélectionner le type de demande légale"
+            f"**{EMOJIS['ticket']} Creating Ticket - Legal Request**\n"
+            "-# Please select the type of legal request"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Menu déroulant
+        # Dropdown menu
         select_row = ui.ActionRow()
         legal_select = ui.Select(
-            placeholder="Sélectionnez un type de demande...",
+            placeholder="Select a request type...",
             options=[
                 discord.SelectOption(
                     label="Data Access",
@@ -796,7 +796,7 @@ class SupportPanelView(ui.View):
     def __init__(self):
         super().__init__(timeout=None)  # No timeout for main panel
 
-    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary, emoji="<:handshake:1448354754366537970>"", row=0)
+    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary, emoji="<:handshake:1448354754366537970>", row=0)
     async def support_button(self, interaction: discord.Interaction, button: ui.Button):
         # Show view to choose support type
         view = SupportTypeView(interaction.user)
@@ -806,7 +806,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Bug Reports", style=discord.ButtonStyle.primary, emoji="<:bug:1448354755868102726>"", row=0)
+    @discord.ui.button(label="Bug Reports", style=discord.ButtonStyle.primary, emoji="<:bug:1448354755868102726>", row=0)
     async def bug_report_button(self, interaction: discord.Interaction, button: ui.Button):
         # Show view to ask for error code
         view = BugReportHasCodeView(interaction.user)
@@ -816,7 +816,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Sanction Appeals", style=discord.ButtonStyle.primary, emoji="<:gavel:1448354751011094611>"", row=1)
+    @discord.ui.button(label="Sanction Appeals", style=discord.ButtonStyle.primary, emoji="<:gavel:1448354751011094611>", row=1)
     async def sanction_appeal_button(self, interaction: discord.Interaction, button: ui.Button):
         # Show view to choose server/user
         view = SanctionAppealTypeView(interaction.user)
@@ -826,12 +826,12 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji="<:payments:1448354761769353288>"", row=1)
+    @discord.ui.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji="<:payments:1448354761769353288>", row=1)
     async def payments_billing_button(self, interaction: discord.Interaction, button: ui.Button):
         # Create ticket directly
         await create_payments_billing_ticket(interaction, interaction.user, {})
 
-    @discord.ui.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji="<:balance:1448354749110816900>"", row=2)
+    @discord.ui.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji="<:balance:1448354749110816900>", row=2)
     async def legal_request_button(self, interaction: discord.Interaction, button: ui.Button):
         # Show dropdown menu to choose request type
         view = LegalRequestTypeView(interaction.user)
@@ -841,7 +841,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Other Request", style=discord.ButtonStyle.primary, emoji="<:question_mark:1448354747836006564>"", row=2)
+    @discord.ui.button(label="Other Request", style=discord.ButtonStyle.primary, emoji="<:question_mark:1448354747836006564>", row=2)
     async def other_request_button(self, interaction: discord.Interaction, button: ui.Button):
         # Create ticket directly
         await create_other_request_ticket(interaction, interaction.user, {})
@@ -991,16 +991,16 @@ class ArchiveRequestView(ui.LayoutView):
         container = ui.Container()
         container.add_item(ui.TextDisplay(
             f"**{EMOJIS['archive']} Archive Request**\n"
-            "L'équipe souhaite archiver ce ticket. Êtes-vous d'accord ?"
+            "The team would like to archive this ticket. Do you agree?"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Boutons Oui/Non
+        # Yes/No buttons
         button_row = ui.ActionRow()
 
         @button_row.button(
-            label="Oui",
+            label="Yes",
             style=discord.ButtonStyle.success,
             emoji=EMOJIS['done'],
             custom_id=f"archive_request:yes:{thread_id}"
@@ -1038,7 +1038,7 @@ class ArchiveRequestView(ui.LayoutView):
             )
 
         @button_row.button(
-            label="Non",
+            label="No",
             style=discord.ButtonStyle.danger,
             emoji=EMOJIS['undone'],
             custom_id=f"archive_request:no:{thread_id}"
