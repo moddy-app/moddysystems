@@ -806,14 +806,17 @@ class SupportPanelView(ui.View):
 
 
 class TicketControlView(ui.LayoutView):
-    """Vue with buttons Claim et Archive pour les tickets"""
+    """View with Claim and Archive buttons for tickets"""
 
     def __init__(self, thread_id: int, category: str, is_claimed: bool = False):
         super().__init__(timeout=None)
         self.thread_id = thread_id
         self.category = category
 
-        # Boutons Claim et Archive
+        # Create container
+        container = ui.Container()
+
+        # Claim and Archive buttons
         button_row = ui.ActionRow()
 
         @button_row.button(
@@ -834,7 +837,8 @@ class TicketControlView(ui.LayoutView):
         async def archive_button(interaction: discord.Interaction, button: ui.Button):
             await self.handle_archive(interaction)
 
-        self.add_item(button_row)
+        container.add_item(button_row)
+        self.add_item(container)
 
     async def handle_claim(self, interaction: discord.Interaction):
         """Gère le claim/unclaim d'un ticket"""
@@ -1017,10 +1021,12 @@ class ArchiveRequestView(ui.View):
         )
 
 
-# Fonctions de création de tickets
+# Ticket creation functions
 async def create_support_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de support"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates a support ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
@@ -1081,8 +1087,10 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
 
 
 async def create_bug_report_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de bug report"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates a bug report ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
@@ -1165,8 +1173,10 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
 
 
 async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de sanction appeal"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates a sanction appeal ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
@@ -1244,8 +1254,10 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
 
 
 async def create_legal_request_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de legal request"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates a legal request ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
@@ -1310,8 +1322,10 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
 
 
 async def create_payments_billing_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de payments & billing"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates a payments & billing ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
@@ -1359,8 +1373,10 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
 
 
 async def create_other_request_ticket(interaction: discord.Interaction, user: discord.User, metadata: Dict):
-    """Crée un ticket de other request"""
-    await interaction.response.defer(ephemeral=True)
+    """Creates an other request ticket"""
+    # Check if interaction hasn't been responded to yet
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
 
     # Create private thread
     channel = interaction.guild.get_channel(SUPPORT_CHANNEL_ID)
