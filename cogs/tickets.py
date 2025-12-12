@@ -394,66 +394,52 @@ class ServerInviteModal(ui.Modal, title="Server Invitation Link"):
         await self.callback_func(interaction, invite)
 
 
-# Views pour les différentes étapes
-class SupportTypeView(ui.LayoutView):
-    """Vue pour choisir le type de support (serveur/utilisateur/autre)"""
+# Views for different steps
+class SupportTypeView(ui.View):
+    """View to choose support type (server/user/other)"""
 
     def __init__(self, user: discord.User):
         super().__init__(timeout=300)
         self.user = user
         self.selected_type = None
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Creating Ticket - Support**\n"
-            "-# Please select the type of support you need"
-        ))
+    @discord.ui.button(label="Server", style=discord.ButtonStyle.primary, row=0)
+    async def server_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        self.selected_type = "server"
+        # Ask for invitation link
+        modal = ServerInviteModal(self.on_server_invite_submit)
+        await interaction.response.send_modal(modal)
 
-        # Buttons
-        button_row = ui.ActionRow()
+    @discord.ui.button(label="User", style=discord.ButtonStyle.primary, row=0)
+    async def user_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
 
-        @button_row.button(label="Server", style=discord.ButtonStyle.primary)
-        async def server_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
+        self.selected_type = "user"
+        await self.create_ticket(interaction, {"type": "user"})
 
-            self.selected_type = "server"
-            # Ask for invitation link
-            modal = ServerInviteModal(self.on_server_invite_submit)
-            await interaction.response.send_modal(modal)
+    @discord.ui.button(label="Other", style=discord.ButtonStyle.primary, row=0)
+    async def other_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
 
-        @button_row.button(label="User", style=discord.ButtonStyle.primary)
-        async def user_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            self.selected_type = "user"
-            await self.create_ticket(interaction, {"type": "user"})
-
-        @button_row.button(label="Other", style=discord.ButtonStyle.primary)
-        async def other_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            self.selected_type = "other"
-            await self.create_ticket(interaction, {"type": "other"})
-
-        container.add_item(button_row)
-        self.add_item(container)
+        self.selected_type = "other"
+        await self.create_ticket(interaction, {"type": "other"})
 
     async def on_server_invite_submit(self, interaction: discord.Interaction, invite: str):
         """Callback quand l'utilisateur soumet le lien d'invitation"""
@@ -480,50 +466,36 @@ class SupportTypeView(ui.LayoutView):
         await create_support_ticket(interaction, self.user, metadata)
 
 
-class BugReportHasCodeView(ui.LayoutView):
-    """Vue pour demander si l'utilisateur a un code erreur"""
+class BugReportHasCodeView(ui.View):
+    """View to ask if user has an error code"""
 
     def __init__(self, user: discord.User):
         super().__init__(timeout=300)
         self.user = user
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Creating Ticket - Bug Report**\n"
-            "-# Do you have an error code to provide?"
-        ))
+    @discord.ui.button(label="Yes, I have an error code", style=discord.ButtonStyle.primary, row=0)
+    async def yes_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        # Show modal to enter the code
+        modal = ErrorCodeModal(self.on_error_code_submit)
+        await interaction.response.send_modal(modal)
 
-        # Buttons
-        button_row = ui.ActionRow()
+    @discord.ui.button(label="No, I don't have a code", style=discord.ButtonStyle.secondary, row=0)
+    async def no_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
 
-        @button_row.button(label="Yes, I have an error code", style=discord.ButtonStyle.primary)
-        async def yes_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            # Show modal to enter the code
-            modal = ErrorCodeModal(self.on_error_code_submit)
-            await interaction.response.send_modal(modal)
-
-        @button_row.button(label="No, I don't have a code", style=discord.ButtonStyle.secondary)
-        async def no_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            await self.create_ticket(interaction, {})
-
-        container.add_item(button_row)
-        self.add_item(container)
+        await self.create_ticket(interaction, {})
 
     async def on_error_code_submit(self, interaction: discord.Interaction, error_code: str):
         """Callback quand l'utilisateur soumet un code erreur"""
@@ -549,68 +521,54 @@ class BugReportHasCodeView(ui.LayoutView):
         await create_bug_report_ticket(interaction, self.user, metadata)
 
 
-class SanctionAppealTypeView(ui.LayoutView):
-    """Vue pour choisir le type de sanction appeal (serveur/utilisateur)"""
+class SanctionAppealTypeView(ui.View):
+    """View to choose sanction appeal type (server/user)"""
 
     def __init__(self, user: discord.User):
         super().__init__(timeout=300)
         self.user = user
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['ticket']} Creating Ticket - Sanction Appeal**\n"
-            "-# Do you want to appeal a sanction concerning a server or yourself?"
-        ))
-
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # Buttons
-        button_row = ui.ActionRow()
-
-        @button_row.button(label="Server", style=discord.ButtonStyle.primary)
-        async def server_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            # Ask for invitation link
-            modal = ServerInviteModal(self.on_server_invite_submit)
-            await interaction.response.send_modal(modal)
-
-        @button_row.button(label="Myself (user)", style=discord.ButtonStyle.primary)
-        async def user_button(interaction: discord.Interaction, button: ui.Button):
-            if interaction.user.id != self.user.id:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
-                    ephemeral=True
-                )
-                return
-
-            await interaction.response.defer(ephemeral=True)
-
-            # Retrieve user cases
-            cases = await db.get_user_cases(self.user.id)
-
-            if not cases:
-                await interaction.followup.send(
-                    f"{EMOJIS['undone']} You have no open cases.",
-                    ephemeral=True
-                )
-                return
-
-            # Show dropdown menu of cases
-            view = CaseSelectView(self.user, cases, "user")
-            await interaction.followup.send(
-                f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
-                view=view,
+    @discord.ui.button(label="Server", style=discord.ButtonStyle.primary, row=0)
+    async def server_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
                 ephemeral=True
             )
+            return
 
-        container.add_item(button_row)
-        self.add_item(container)
+        # Ask for invitation link
+        modal = ServerInviteModal(self.on_server_invite_submit)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Myself (user)", style=discord.ButtonStyle.primary, row=0)
+    async def user_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who initiated this action can respond.",
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Retrieve user cases
+        cases = await db.get_user_cases(self.user.id)
+
+        if not cases:
+            await interaction.followup.send(
+                f"{EMOJIS['undone']} You have no open cases.",
+                ephemeral=True
+            )
+            return
+
+        # Show dropdown menu of cases
+        view = CaseSelectView(self.user, cases, "user")
+        await interaction.followup.send(
+            f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
+            view=view,
+            ephemeral=True
+        )
 
     async def on_server_invite_submit(self, interaction: discord.Interaction, invite: str):
         """Callback quand l'utilisateur soumet le lien d'invitation"""
@@ -801,7 +759,7 @@ class SupportPanelView(ui.View):
         # Show view to choose support type
         view = SupportTypeView(interaction.user)
         await interaction.response.send_message(
-            f"{EMOJIS['ticket']} **Creating ticket - Support**",
+            f"{EMOJIS['ticket']} **Creating Ticket - Support**\n-# Please select the type of support you need",
             view=view,
             ephemeral=True
         )
@@ -811,7 +769,7 @@ class SupportPanelView(ui.View):
         # Show view to ask for error code
         view = BugReportHasCodeView(interaction.user)
         await interaction.response.send_message(
-            f"{EMOJIS['ticket']} **Creating ticket - Bug Report**",
+            f"{EMOJIS['ticket']} **Creating Ticket - Bug Report**\n-# Do you have an error code to provide?",
             view=view,
             ephemeral=True
         )
@@ -821,7 +779,7 @@ class SupportPanelView(ui.View):
         # Show view to choose server/user
         view = SanctionAppealTypeView(interaction.user)
         await interaction.response.send_message(
-            f"{EMOJIS['ticket']} **Creating ticket - Sanction Appeal**",
+            f"{EMOJIS['ticket']} **Creating Ticket - Sanction Appeal**\n-# Do you want to appeal a sanction concerning a server or yourself?",
             view=view,
             ephemeral=True
         )
@@ -981,94 +939,82 @@ class TicketControlView(ui.LayoutView):
         )
 
 
-class ArchiveRequestView(ui.LayoutView):
-    """Vue pour demander l'archivage d'un ticket"""
+class ArchiveRequestView(ui.View):
+    """View to request ticket archival"""
 
     def __init__(self, thread_id: int):
         super().__init__(timeout=None)
         self.thread_id = thread_id
 
-        container = ui.Container()
-        container.add_item(ui.TextDisplay(
-            f"**{EMOJIS['archive']} Archive Request**\n"
-            "The team would like to archive this ticket. Do you agree?"
-        ))
+    @discord.ui.button(
+        label="Yes",
+        style=discord.ButtonStyle.success,
+        emoji=EMOJIS['done'],
+        custom_id=f"archive_request:yes:{0}",  # Will be replaced with thread_id
+        row=0
+    )
+    async def yes_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Retrieve ticket
+        ticket = await db.get_ticket(self.thread_id)
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # Yes/No buttons
-        button_row = ui.ActionRow()
-
-        @button_row.button(
-            label="Yes",
-            style=discord.ButtonStyle.success,
-            emoji=EMOJIS['done'],
-            custom_id=f"archive_request:yes:{thread_id}"
-        )
-        async def yes_button(interaction: discord.Interaction, button: ui.Button):
-            # Retrieve le ticket
-            ticket = await db.get_ticket(self.thread_id)
-
-            if not ticket:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Ticket not found.",
-                    ephemeral=True
-                )
-                return
-
-            # Check que c'est l'utilisateur du ticket
-            if interaction.user.id != ticket['user_id']:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
-                    ephemeral=True
-                )
-                return
-
-            # Archive le ticket
-            await db.archive_ticket(self.thread_id)
-
-            # Lock thread
-            thread = interaction.guild.get_thread(self.thread_id)
-            if thread:
-                await thread.edit(archived=True, locked=True)
-
+        if not ticket:
             await interaction.response.send_message(
-                f"{EMOJIS['done']} The ticket has been archived.",
-                ephemeral=False
+                f"{EMOJIS['undone']} Ticket not found.",
+                ephemeral=True
             )
+            return
 
-        @button_row.button(
-            label="No",
-            style=discord.ButtonStyle.danger,
-            emoji=EMOJIS['undone'],
-            custom_id=f"archive_request:no:{thread_id}"
-        )
-        async def no_button(interaction: discord.Interaction, button: ui.Button):
-            # Retrieve le ticket
-            ticket = await db.get_ticket(self.thread_id)
-
-            if not ticket:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Ticket not found.",
-                    ephemeral=True
-                )
-                return
-
-            # Check que c'est l'utilisateur du ticket
-            if interaction.user.id != ticket['user_id']:
-                await interaction.response.send_message(
-                    f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
-                    ephemeral=True
-                )
-                return
-
+        # Check that it's the ticket user
+        if interaction.user.id != ticket['user_id']:
             await interaction.response.send_message(
-                f"{EMOJIS['done']} The archive request has been declined.",
-                ephemeral=False
+                f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
+                ephemeral=True
             )
+            return
 
-        container.add_item(button_row)
-        self.add_item(container)
+        # Archive ticket
+        await db.archive_ticket(self.thread_id)
+
+        # Lock thread
+        thread = interaction.guild.get_thread(self.thread_id)
+        if thread:
+            await thread.edit(archived=True, locked=True)
+
+        await interaction.response.send_message(
+            f"{EMOJIS['done']} The ticket has been archived.",
+            ephemeral=False
+        )
+
+    @discord.ui.button(
+        label="No",
+        style=discord.ButtonStyle.danger,
+        emoji=EMOJIS['undone'],
+        custom_id=f"archive_request:no:{0}",  # Will be replaced with thread_id
+        row=0
+    )
+    async def no_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Retrieve ticket
+        ticket = await db.get_ticket(self.thread_id)
+
+        if not ticket:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Ticket not found.",
+                ephemeral=True
+            )
+            return
+
+        # Check that it's the ticket user
+        if interaction.user.id != ticket['user_id']:
+            await interaction.response.send_message(
+                f"{EMOJIS['undone']} Only the user who created the ticket can respond.",
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.send_message(
+            f"{EMOJIS['done']} The archive request has been declined.",
+            ephemeral=False
+        )
 
 
 # Fonctions de création de tickets
@@ -1564,9 +1510,12 @@ class Tickets(commands.Cog):
         except:
             pass
 
-        # Send la demande d'archivage
+        # Send archive request
         view = ArchiveRequestView(ctx.channel.id)
-        await ctx.send(view=view)
+        await ctx.send(
+            f"**{EMOJIS['archive']} Archive Request**\nThe team would like to archive this ticket. Do you agree?",
+            view=view
+        )
 
 
 async def setup(bot):
