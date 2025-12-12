@@ -565,7 +565,6 @@ class SanctionAppealTypeView(ui.View):
         # Show dropdown menu of cases
         view = CaseSelectView(self.user, cases, "user")
         await interaction.followup.send(
-            f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
             view=view,
             ephemeral=True
         )
@@ -597,7 +596,6 @@ class SanctionAppealTypeView(ui.View):
         # Show dropdown menu of cases
         view = CaseSelectView(self.user, cases, "server", invite_link=invite)
         await interaction.followup.send(
-            f"{EMOJIS['ticket']} **Case Selection**\nPlease select the case you wish to appeal:",
             view=view,
             ephemeral=True
         )
@@ -794,7 +792,6 @@ class SupportPanelView(ui.View):
         # Show dropdown menu to choose request type
         view = LegalRequestTypeView(interaction.user)
         await interaction.response.send_message(
-            f"{EMOJIS['ticket']} **Creating ticket - Legal Request**",
             view=view,
             ephemeral=True
         )
