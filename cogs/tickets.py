@@ -1475,6 +1475,23 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
         view=view
     )
 
+    # Message with information (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Basic info
+    info_container.add_item(ui.TextDisplay(
+        f"**Category:** Payments & Billing\n"
+        f"-# Please provide details about your payment or billing inquiry"
+    ))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
+
     # Save to DB
     await db.create_ticket(thread.id, user.id, "payments_billing", metadata)
 
@@ -1525,6 +1542,23 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
         content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}\n\n{main_message}",
         view=view
     )
+
+    # Message with information (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Basic info
+    info_container.add_item(ui.TextDisplay(
+        f"**Category:** Other Request\n"
+        f"-# Please describe your request in detail"
+    ))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "other_request", metadata)
