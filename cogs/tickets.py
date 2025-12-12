@@ -816,24 +816,25 @@ class TicketControlView(ui.LayoutView):
         # Claim and Archive buttons
         button_row = ui.ActionRow()
 
-        @button_row.button(
+        # Create buttons as instances (not decorators)
+        claim_button = ui.Button(
             label="Unclaim" if is_claimed else "Claim",
             style=discord.ButtonStyle.primary,
             emoji=EMOJIS['front_hand'],
             custom_id=f"ticket:claim:{thread_id}"
         )
-        async def claim_button(interaction: discord.Interaction, button: ui.Button):
-            await self.handle_claim(interaction)
+        claim_button.callback = self.handle_claim
 
-        @button_row.button(
+        archive_button = ui.Button(
             label="Archive",
             style=discord.ButtonStyle.secondary,
             emoji=EMOJIS['archive'],
             custom_id=f"ticket:archive:{thread_id}"
         )
-        async def archive_button(interaction: discord.Interaction, button: ui.Button):
-            await self.handle_archive(interaction)
+        archive_button.callback = self.handle_archive
 
+        button_row.add_item(claim_button)
+        button_row.add_item(archive_button)
         container.add_item(button_row)
         self.add_item(container)
 
