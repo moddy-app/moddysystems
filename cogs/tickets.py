@@ -871,15 +871,32 @@ class SupportPanelView(ui.LayoutView):
 
 
 class TicketControlView(ui.LayoutView):
-    """View with Claim and Archive buttons for tickets"""
+    """View with ticket info, Claim and Archive buttons"""
 
-    def __init__(self, thread_id: int, category: str, is_claimed: bool = False):
+    def __init__(self, thread_id: int, category: str, user: discord.User, emoji: str, title: str, is_claimed: bool = False):
         super().__init__(timeout=None)
         self.thread_id = thread_id
         self.category = category
+        self.user = user
+        self.emoji = emoji
+        self.title = title
 
         # Create container
         container = ui.Container()
+
+        # Header with ticket info
+        container.add_item(ui.TextDisplay(
+            f"## {emoji} {title}\n"
+            f"Ticket created by {user.mention}"
+        ))
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # User info
+        container.add_item(ui.TextDisplay(
+            f"**User:** {user.mention} (`{user.id}`)\n"
+            f"**Created:** <t:{int(discord.utils.utcnow().timestamp())}:F>"
+        ))
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # Claim and Archive buttons
         button_row = ui.ActionRow()
@@ -952,7 +969,7 @@ class TicketControlView(ui.LayoutView):
                 )
 
                 # Create une nouvelle vue avec le bon label
-                new_view = TicketControlView(self.thread_id, self.category, is_claimed=False)
+                new_view = TicketControlView(self.thread_id, self.category, self.user, self.emoji, self.title, is_claimed=False)
                 await interaction.message.edit(view=new_view)
             else:
                 claimed_user = interaction.guild.get_member(ticket['claimed_by'])
@@ -970,7 +987,7 @@ class TicketControlView(ui.LayoutView):
             )
 
             # Create une nouvelle vue avec le bon label
-            new_view = TicketControlView(self.thread_id, self.category, is_claimed=True)
+            new_view = TicketControlView(self.thread_id, self.category, self.user, self.emoji, self.title, is_claimed=True)
             await interaction.message.edit(view=new_view)
 
     async def handle_archive(self, interaction: discord.Interaction):
@@ -1116,17 +1133,10 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['ticket']} New Ticket - Support\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "support")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "support", user, EMOJIS['handshake'], "New Ticket - Support")
     await thread.send(
-        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}",
         view=view
     )
 
@@ -1191,17 +1201,10 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['bug']} New Ticket - Bug Report\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "bug_report")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "bug_report", user, EMOJIS['bug'], "New Ticket - Bug Report")
     await thread.send(
-        content=f"<@&{ROLES['DEV']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['DEV']}> {user.mention}",
         view=view
     )
 
@@ -1287,17 +1290,10 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['gavel']} New Ticket - Sanction Appeal\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "sanction_appeal")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "sanction_appeal", user, EMOJIS['gavel'], "New Ticket - Sanction Appeal")
     await thread.send(
-        content=f"<@&{ROLES['MODERATOR']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['MODERATOR']}> {user.mention}",
         view=view
     )
 
@@ -1385,17 +1381,10 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['balance']} New Ticket - Legal Request\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "legal_request")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "legal_request", user, EMOJIS['balance'], "New Ticket - Legal Request")
     await thread.send(
-        content=f"<@&{ROLES['MANAGER']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['MANAGER']}> {user.mention}",
         view=view
     )
 
@@ -1461,19 +1450,29 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['payments']} New Ticket - Payments & Billing\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "payments_billing")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "payments_billing", user, EMOJIS['payments'], "New Ticket - Payments & Billing")
     await thread.send(
-        content=f"<@&{ROLES['MANAGER']}> <@&{ROLES['SUPERVISOR']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['MANAGER']}> <@&{ROLES['SUPERVISOR']}> {user.mention}",
         view=view
     )
+
+    # Message with information (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Basic info
+    info_container.add_item(ui.TextDisplay(
+        f"**Category:** Payments & Billing\n"
+        f"-# Please provide details about your payment or billing inquiry"
+    ))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "payments_billing", metadata)
@@ -1512,19 +1511,29 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
     # Add user to thread
     await thread.add_user(user)
 
-    # Main message avec boutons
-    main_message = (
-        f"### {EMOJIS['question_mark']} New Ticket - Other Request\n"
-        f"Ticket created by {user.mention}\n"
-        f"**User:** {user.mention} (`{user.id}`)\n"
-        f"<t:{int(discord.utils.utcnow().timestamp())}:F>"
-    )
-
-    view = TicketControlView(thread.id, "other_request")
+    # Main message avec boutons (Components V2)
+    view = TicketControlView(thread.id, "other_request", user, EMOJIS['question_mark'], "New Ticket - Other Request")
     await thread.send(
-        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}\n\n{main_message}",
+        content=f"<@&{ROLES['SUPPORT_AGENT']}> {user.mention}",
         view=view
     )
+
+    # Message with information (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Basic info
+    info_container.add_item(ui.TextDisplay(
+        f"**Category:** Other Request\n"
+        f"-# Please describe your request in detail"
+    ))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "other_request", metadata)
