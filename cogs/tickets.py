@@ -746,14 +746,87 @@ class LegalRequestTypeView(ui.LayoutView):
         await create_legal_request_ticket(interaction, self.user, metadata)
 
 
-class SupportPanelView(ui.View):
+class SupportPanelView(ui.LayoutView):
     """Vue principale du panel de support"""
 
     def __init__(self):
         super().__init__(timeout=None)  # No timeout for main panel
 
-    @discord.ui.button(label="Support", style=discord.ButtonStyle.primary, emoji="<:handshake:1448354754366537970>", row=0)
-    async def support_button(self, interaction: discord.Interaction, button: ui.Button):
+        # Create container
+        container = ui.Container()
+
+        # First row of buttons
+        row1 = ui.ActionRow()
+
+        support_btn = ui.Button(
+            label="Support",
+            style=discord.ButtonStyle.primary,
+            emoji="<:handshake:1448354754366537970>",
+            custom_id="ticket_panel:support"
+        )
+        support_btn.callback = self.support_button
+
+        bug_btn = ui.Button(
+            label="Bug Reports",
+            style=discord.ButtonStyle.primary,
+            emoji="<:bug:1448354755868102726>",
+            custom_id="ticket_panel:bug_report"
+        )
+        bug_btn.callback = self.bug_report_button
+
+        row1.add_item(support_btn)
+        row1.add_item(bug_btn)
+        container.add_item(row1)
+
+        # Second row of buttons
+        row2 = ui.ActionRow()
+
+        sanction_btn = ui.Button(
+            label="Sanction Appeals",
+            style=discord.ButtonStyle.primary,
+            emoji="<:gavel:1448354751011094611>",
+            custom_id="ticket_panel:sanction_appeal"
+        )
+        sanction_btn.callback = self.sanction_appeal_button
+
+        payments_btn = ui.Button(
+            label="Payments & Billing",
+            style=discord.ButtonStyle.primary,
+            emoji="<:payments:1448354761769353288>",
+            custom_id="ticket_panel:payments_billing"
+        )
+        payments_btn.callback = self.payments_billing_button
+
+        row2.add_item(sanction_btn)
+        row2.add_item(payments_btn)
+        container.add_item(row2)
+
+        # Third row of buttons
+        row3 = ui.ActionRow()
+
+        legal_btn = ui.Button(
+            label="Legal Requests",
+            style=discord.ButtonStyle.primary,
+            emoji="<:balance:1448354749110816900>",
+            custom_id="ticket_panel:legal_request"
+        )
+        legal_btn.callback = self.legal_request_button
+
+        other_btn = ui.Button(
+            label="Other Request",
+            style=discord.ButtonStyle.primary,
+            emoji="<:question_mark:1448354747836006564>",
+            custom_id="ticket_panel:other_request"
+        )
+        other_btn.callback = self.other_request_button
+
+        row3.add_item(legal_btn)
+        row3.add_item(other_btn)
+        container.add_item(row3)
+
+        self.add_item(container)
+
+    async def support_button(self, interaction: discord.Interaction):
         # Show view to choose support type
         view = SupportTypeView(interaction.user)
         await interaction.response.send_message(
@@ -762,8 +835,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Bug Reports", style=discord.ButtonStyle.primary, emoji="<:bug:1448354755868102726>", row=0)
-    async def bug_report_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def bug_report_button(self, interaction: discord.Interaction):
         # Show view to ask for error code
         view = BugReportHasCodeView(interaction.user)
         await interaction.response.send_message(
@@ -772,8 +844,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Sanction Appeals", style=discord.ButtonStyle.primary, emoji="<:gavel:1448354751011094611>", row=1)
-    async def sanction_appeal_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def sanction_appeal_button(self, interaction: discord.Interaction):
         # Show view to choose server/user
         view = SanctionAppealTypeView(interaction.user)
         await interaction.response.send_message(
@@ -782,13 +853,11 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Payments & Billing", style=discord.ButtonStyle.primary, emoji="<:payments:1448354761769353288>", row=1)
-    async def payments_billing_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def payments_billing_button(self, interaction: discord.Interaction):
         # Create ticket directly
         await create_payments_billing_ticket(interaction, interaction.user, {})
 
-    @discord.ui.button(label="Legal Requests", style=discord.ButtonStyle.primary, emoji="<:balance:1448354749110816900>", row=2)
-    async def legal_request_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def legal_request_button(self, interaction: discord.Interaction):
         # Show dropdown menu to choose request type
         view = LegalRequestTypeView(interaction.user)
         await interaction.response.send_message(
@@ -796,8 +865,7 @@ class SupportPanelView(ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="Other Request", style=discord.ButtonStyle.primary, emoji="<:question_mark:1448354747836006564>", row=2)
-    async def other_request_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def other_request_button(self, interaction: discord.Interaction):
         # Create ticket directly
         await create_other_request_ticket(interaction, interaction.user, {})
 
@@ -1036,7 +1104,7 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['ticket']} Support - {user.name}"
+    thread_name = f"Support - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1062,24 +1130,35 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
         view=view
     )
 
-    # Message with information collectées
-    info_parts = [f"### {EMOJIS['ticket']} Ticket Information\n"]
+    # Message with information collectées (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
 
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Support Type
     support_type = metadata.get('type', 'Unknown').capitalize()
-    info_parts.append(f"**Support Type:** {support_type}")
+    info_container.add_item(ui.TextDisplay(f"**Support Type:** {support_type}"))
 
+    # Server info if applicable
     if metadata.get('type') == 'server' and metadata.get('guild_id'):
-        info_parts.append(f"\n**Concerned Server:**")
-        info_parts.append(f"• ID: `{metadata['guild_id']}`")
-        info_parts.append(f"• Invite: {metadata.get('invite_link', 'N/A')}")
+        info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        info_container.add_item(ui.TextDisplay(
+            f"**Concerned Server:**\n"
+            f"• ID: `{metadata['guild_id']}`\n"
+            f"• Invite: {metadata.get('invite_link', 'N/A')}"
+        ))
 
-    await thread.send('\n'.join(info_parts))
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "support", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1100,7 +1179,7 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['bug']} Bug Report - {user.name}"
+    thread_name = f"Bug Report - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1126,46 +1205,56 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
         view=view
     )
 
-    # Message with information collectées
-    info_parts = [f"### {EMOJIS['ticket']} Ticket Information\n"]
+    # Message with information collectées (Components V2)
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
     if metadata.get('error_code'):
         error_info = metadata.get('error_info', {})
-        info_parts.append(f"**Error Code:** `{metadata['error_code']}`\n")
+        info_container.add_item(ui.TextDisplay(f"**Error Code:** `{metadata['error_code']}`"))
 
         if error_info:
+            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
             # Error Context (PAS le traceback)
-            info_parts.append("**Error Context:**")
+            context_parts = ["**Error Context:**"]
 
             if error_info.get('command'):
-                info_parts.append(f"• **Command:** `{error_info['command']}`")
+                context_parts.append(f"• **Command:** `{error_info['command']}`")
 
             if error_info.get('user_id'):
-                info_parts.append(f"• **User:** <@{error_info['user_id']}> (`{error_info['user_id']}`)")
+                context_parts.append(f"• **User:** <@{error_info['user_id']}> (`{error_info['user_id']}`)")
 
             if error_info.get('guild_id'):
-                info_parts.append(f"• **Server:** `{error_info['guild_id']}`")
+                context_parts.append(f"• **Server:** `{error_info['guild_id']}`")
 
             if error_info.get('file_source') and error_info.get('line_number'):
-                info_parts.append(f"• **File:** `{error_info['file_source']}:{error_info['line_number']}`")
+                context_parts.append(f"• **File:** `{error_info['file_source']}:{error_info['line_number']}`")
 
             if error_info.get('error_type'):
-                info_parts.append(f"• **Type:** `{error_info['error_type']}`")
+                context_parts.append(f"• **Type:** `{error_info['error_type']}`")
 
             if error_info.get('timestamp'):
                 timestamp = int(error_info['timestamp'].timestamp()) if hasattr(error_info['timestamp'], 'timestamp') else 0
                 if timestamp:
-                    info_parts.append(f"• **When:** <t:{timestamp}:F>")
-    else:
-        info_parts.append("**Error Code:** No error code provided")
+                    context_parts.append(f"• **When:** <t:{timestamp}:F>")
 
-    await thread.send('\n'.join(info_parts))
+            info_container.add_item(ui.TextDisplay('\n'.join(context_parts)))
+    else:
+        info_container.add_item(ui.TextDisplay("**Error Code:** No error code provided"))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "bug_report", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1186,7 +1275,7 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['gavel']} Sanction Appeal - {user.name}"
+    thread_name = f"Sanction Appeal - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1212,41 +1301,58 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
         view=view
     )
 
-    # Message with information of the case
+    # Message with information of the case (Components V2)
     case_info = metadata.get('case_info', {})
-    info_parts = [f"### {EMOJIS['ticket']} Case Information\n"]
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
+
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Case Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
     if case_info:
-        info_parts.append(f"**Case ID:** `{case_info['case_id']}`")
-        info_parts.append(f"**Case Type:** {case_info.get('case_type', 'N/A').capitalize()}")
-        info_parts.append(f"**Sanction Type:** {case_info.get('sanction_type', 'N/A').replace('_', ' ').title()}")
-        info_parts.append(f"**Status:** {case_info.get('status', 'N/A').capitalize()}\n")
+        # Basic info
+        basic_info = [
+            f"**Case ID:** `{case_info['case_id']}`",
+            f"**Case Type:** {case_info.get('case_type', 'N/A').capitalize()}",
+            f"**Sanction Type:** {case_info.get('sanction_type', 'N/A').replace('_', ' ').title()}",
+            f"**Status:** {case_info.get('status', 'N/A').capitalize()}"
+        ]
+        info_container.add_item(ui.TextDisplay('\n'.join(basic_info)))
 
+        info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # Entity info
         entity_type = case_info.get('entity_type', 'N/A')
         entity_id = case_info.get('entity_id', 'N/A')
 
         if entity_type == 'user':
-            info_parts.append(f"**Sanctioned User:** <@{entity_id}> (`{entity_id}`)")
+            info_container.add_item(ui.TextDisplay(f"**Sanctioned User:** <@{entity_id}> (`{entity_id}`)"))
         elif entity_type == 'guild':
-            info_parts.append(f"**Sanctioned Server:** `{entity_id}`")
+            info_container.add_item(ui.TextDisplay(f"**Sanctioned Server:** `{entity_id}`"))
 
+        # Reason
         if case_info.get('reason'):
-            info_parts.append(f"\n**Reason:**\n{case_info['reason'][:1024]}")
+            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            info_container.add_item(ui.TextDisplay(f"**Reason:**\n{case_info['reason'][:1024]}"))
 
+        # Created by
         if case_info.get('created_by'):
+            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
             created_timestamp = int(case_info['created_at'].timestamp()) if case_info.get('created_at') and hasattr(case_info['created_at'], 'timestamp') else 0
             created_by_text = f"<@{case_info['created_by']}>"
             if created_timestamp:
                 created_by_text += f" (<t:{created_timestamp}:R>)"
-            info_parts.append(f"\n**Created by:** {created_by_text}")
+            info_container.add_item(ui.TextDisplay(f"**Created by:** {created_by_text}"))
 
-    await thread.send('\n'.join(info_parts))
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "sanction_appeal", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1267,7 +1373,7 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['balance']} Legal Request - {user.name}"
+    thread_name = f"Legal Request - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1293,7 +1399,7 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
         view=view
     )
 
-    # Message with le type de demande
+    # Message with le type de demande (Components V2)
     legal_type = metadata.get('legal_type', 'unknown')
 
     legal_types_names = {
@@ -1303,18 +1409,26 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
         'objection': 'Objection'
     }
 
-    info_message = (
-        f"**{EMOJIS['ticket']} Ticket Information**\n\n"
-        f"**Legal Request Type:** {legal_types_names.get(legal_type, legal_type.capitalize())}"
-    )
+    info_view = ui.LayoutView(timeout=None)
+    info_container = ui.Container()
 
-    await thread.send(info_message)
+    # Title
+    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
+    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    # Legal request type
+    info_container.add_item(ui.TextDisplay(
+        f"**Legal Request Type:** {legal_types_names.get(legal_type, legal_type.capitalize())}"
+    ))
+
+    info_view.add_item(info_container)
+    await thread.send(view=info_view)
 
     # Save to DB
     await db.create_ticket(thread.id, user.id, "legal_request", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1335,7 +1449,7 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['payments']} Payments & Billing - {user.name}"
+    thread_name = f"Payments & Billing - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1365,7 +1479,7 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
     await db.create_ticket(thread.id, user.id, "payments_billing", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1386,7 +1500,7 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
         return
 
     # Nom du thread
-    thread_name = f"{EMOJIS['question_mark']} Other Request - {user.name}"
+    thread_name = f"Other Request - {user.name}"
 
     # Create thread
     thread = await channel.create_thread(
@@ -1416,7 +1530,7 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
     await db.create_ticket(thread.id, user.id, "other_request", metadata)
 
     await interaction.followup.send(
-        f"{EMOJIS['done']} Your ticket has been created : {thread.mention}",
+        f"{EMOJIS['done']} Your ticket has been created, here is the link: {thread.mention}",
         ephemeral=True
     )
 
@@ -1431,6 +1545,11 @@ class Tickets(commands.Cog):
         """Appelé quand le cog est chargé"""
         # Connecter à la base de données
         await db.connect()
+
+        # Register persistent views
+        self.bot.add_view(SupportPanelView())
+        logger.info("✅ Registered persistent SupportPanelView")
+
         logger.info("Tickets cog loaded")
 
     async def cog_unload(self):
