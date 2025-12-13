@@ -365,8 +365,19 @@ def get_staff_roles(staff_info: Optional[Dict]) -> List[str]:
         return []
 
     roles = staff_info['roles']
+
+    # If roles is a string (JSON), parse it
+    if isinstance(roles, str):
+        try:
+            roles = json.loads(roles)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse roles JSON: {roles}")
+            return []
+
+    # If roles is a list, return it
     if isinstance(roles, list):
         return roles
+
     return []
 
 
@@ -376,9 +387,9 @@ def can_manage_ticket(staff_roles: List[str], category: str) -> bool:
     if 'Manager' in staff_roles:
         return True
 
-    # Check if user has any Supervisor role
+    # Check if user has any Supervisor role (Supervisor_Mod, Supervisor_Com, Supervisor_Sup)
     for role in staff_roles:
-        if role.startswith('Supervisor'):
+        if role.startswith('Supervisor_'):
             return True
 
     # Permissions by category
@@ -996,6 +1007,7 @@ class TicketControlView(ui.LayoutView):
             return
 
         staff_roles = get_staff_roles(staff_info)
+        logger.info(f"User {interaction.user.id} has roles: {staff_roles} for category {self.category}")
 
         # Check les permissions
         if not can_manage_ticket(staff_roles, self.category):
