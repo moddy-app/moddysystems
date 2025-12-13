@@ -7,6 +7,7 @@ import re
 import logging
 from typing import Optional, Dict, List
 import aiohttp
+import json
 
 logger = logging.getLogger('ModdySystems.Tickets')
 
@@ -196,13 +197,16 @@ class TicketDatabase:
             return
 
         try:
+            # Convert metadata dict to JSON string
+            metadata_json = json.dumps(metadata or {})
+
             async with self.systems_pool.acquire() as conn:
                 await conn.execute(
                     """
                     INSERT INTO tickets (thread_id, user_id, category, metadata)
-                    VALUES ($1, $2, $3, $4)
+                    VALUES ($1, $2, $3, $4::jsonb)
                     """,
-                    thread_id, user_id, category, metadata or {}
+                    thread_id, user_id, category, metadata_json
                 )
         except Exception as e:
             logger.error(f"Error creating ticket: {e}")
@@ -268,12 +272,56 @@ class TicketDatabase:
         except Exception as e:
             logger.error(f"Error archiving ticket: {e}")
 
+    async def unarchive_ticket(self, thread_id: int):
+        """Unarchives a ticket"""
+        if not self.systems_pool:
+            return
+
+        try:
+            async with self.systems_pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE tickets SET archived = FALSE, archived_at = NULL WHERE thread_id = $1",
+                    thread_id
+                )
+        except Exception as e:
+            logger.error(f"Error unarchiving ticket: {e}")
+
 
 # Global database instance
 db = TicketDatabase()
 
 
 # Utility functions
+async def update_thread_status_indicator(thread: discord.Thread, status: str):
+    """Updates the thread name with a status indicator emoji
+
+    Args:
+        thread: The thread to update
+        status: One of 'unclaimed', 'claimed', 'archive_request', 'archived'
+    """
+    indicators = {
+        'unclaimed': '⚪',
+        'claimed': '🟢',
+        'archive_request': '🟡',
+        'archived': '🔴'
+    }
+
+    indicator = indicators.get(status, '⚪')
+
+    # Remove any existing indicator from the name
+    current_name = thread.name
+    for emoji in indicators.values():
+        current_name = current_name.replace(f"{emoji} ", "").strip()
+
+    # Add the new indicator
+    new_name = f"{indicator} {current_name}"
+
+    try:
+        await thread.edit(name=new_name)
+    except Exception as e:
+        logger.error(f"Error updating thread name: {e}")
+
+
 async def get_guild_id_from_invite(invite_url: str) -> Optional[int]:
     """Extracts server ID from invitation link"""
     # Extract invitation code
@@ -324,16 +372,21 @@ def get_staff_roles(staff_info: Optional[Dict]) -> List[str]:
 
 def can_manage_ticket(staff_roles: List[str], category: str) -> bool:
     """Checks if a staff member can manage a ticket of a given category"""
-    # Manager and Supervisor can manage everything
-    if 'Manager' in staff_roles or 'Supervisor_Mod' in staff_roles or 'Supervisor_Com' in staff_roles or 'Supervisor_Sup' in staff_roles:
+    # Manager and any Supervisor can manage everything
+    if 'Manager' in staff_roles:
         return True
+
+    # Check if user has any Supervisor role
+    for role in staff_roles:
+        if role.startswith('Supervisor'):
+            return True
 
     # Permissions by category
     permissions = {
         'support': ['Support'],
         'bug_report': ['Dev'],
         'sanction_appeal': ['Moderator'],
-        'legal_request': ['Manager'],
+        'legal_request': ['Manager'],  # Already checked above
         'payments_billing': ['Support'],
         'other_request': ['Support', 'Communication', 'Moderator', 'Dev'],
     }
@@ -757,18 +810,17 @@ class SupportPanelView(ui.LayoutView):
 
         # Panel header
         container.add_item(ui.TextDisplay(
-            f"## {EMOJIS['ticket']} Moddy Support Panel\n"
+            f"### {EMOJIS['ticket']} Moddy Support Panel\n"
             "Please select the category that matches your request below.\n"
             "Our team will get back to you as soon as possible."
         ))
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # First row of buttons
         row1 = ui.ActionRow()
 
         support_btn = ui.Button(
             label="Support",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:handshake:1448354754366537970>",
             custom_id="ticket_panel:support"
         )
@@ -776,7 +828,7 @@ class SupportPanelView(ui.LayoutView):
 
         bug_btn = ui.Button(
             label="Bug Reports",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:bug:1448354755868102726>",
             custom_id="ticket_panel:bug_report"
         )
@@ -791,7 +843,7 @@ class SupportPanelView(ui.LayoutView):
 
         sanction_btn = ui.Button(
             label="Sanction Appeals",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:gavel:1448354751011094611>",
             custom_id="ticket_panel:sanction_appeal"
         )
@@ -799,7 +851,7 @@ class SupportPanelView(ui.LayoutView):
 
         payments_btn = ui.Button(
             label="Payments & Billing",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:payments:1448354761769353288>",
             custom_id="ticket_panel:payments_billing"
         )
@@ -814,7 +866,7 @@ class SupportPanelView(ui.LayoutView):
 
         legal_btn = ui.Button(
             label="Legal Requests",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:balance:1448354749110816900>",
             custom_id="ticket_panel:legal_request"
         )
@@ -822,7 +874,7 @@ class SupportPanelView(ui.LayoutView):
 
         other_btn = ui.Button(
             label="Other Request",
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
             emoji="<:question_mark:1448354747836006564>",
             custom_id="ticket_panel:other_request"
         )
@@ -896,17 +948,11 @@ class TicketControlView(ui.LayoutView):
         # Mentions at the top if provided
         if mentions:
             container.add_item(ui.TextDisplay(mentions))
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # Header with ticket info
         container.add_item(ui.TextDisplay(
-            f"## {emoji} {title}\n"
-            f"Ticket created by {user.mention}"
-        ))
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # User info
-        container.add_item(ui.TextDisplay(
+            f"### {emoji} {title}\n"
+            f"Ticket created by {user.mention}\n\n"
             f"**User:** {user.mention} (`{user.id}`)\n"
             f"**Created:** <t:{int(discord.utils.utcnow().timestamp())}:F>"
         ))
@@ -977,6 +1023,12 @@ class TicketControlView(ui.LayoutView):
             if ticket['claimed_by'] == interaction.user.id or is_supervisor_or_manager:
                 # Unclaim
                 await db.unclaim_ticket(self.thread_id)
+
+                # Update thread status indicator
+                thread = interaction.guild.get_thread(self.thread_id)
+                if thread:
+                    await update_thread_status_indicator(thread, 'unclaimed')
+
                 await interaction.response.send_message(
                     f"{EMOJIS['done']} Ticket unclaimed successfully.",
                     ephemeral=True
@@ -995,6 +1047,12 @@ class TicketControlView(ui.LayoutView):
         else:
             # Claim
             await db.claim_ticket(self.thread_id, interaction.user.id)
+
+            # Update thread status indicator
+            thread = interaction.guild.get_thread(self.thread_id)
+            if thread:
+                await update_thread_status_indicator(thread, 'claimed')
+
             await interaction.response.send_message(
                 f"{EMOJIS['done']} Ticket claimed successfully.",
                 ephemeral=True
@@ -1029,9 +1087,10 @@ class TicketControlView(ui.LayoutView):
         # Archive le ticket to DB
         await db.archive_ticket(self.thread_id)
 
-        # Lock thread
+        # Lock thread and update status indicator
         thread = interaction.guild.get_thread(self.thread_id)
         if thread:
+            await update_thread_status_indicator(thread, 'archived')
             await thread.edit(archived=True, locked=True)
 
         await interaction.response.send_message(
@@ -1076,9 +1135,10 @@ class ArchiveRequestView(ui.View):
         # Archive ticket
         await db.archive_ticket(self.thread_id)
 
-        # Lock thread
+        # Lock thread and update status indicator
         thread = interaction.guild.get_thread(self.thread_id)
         if thread:
+            await update_thread_status_indicator(thread, 'archived')
             await thread.edit(archived=True, locked=True)
 
         await interaction.response.send_message(
@@ -1112,6 +1172,12 @@ class ArchiveRequestView(ui.View):
             )
             return
 
+        # Update thread status indicator back to claimed or unclaimed
+        thread = interaction.guild.get_thread(self.thread_id)
+        if thread:
+            status = 'claimed' if ticket['claimed_by'] else 'unclaimed'
+            await update_thread_status_indicator(thread, status)
+
         await interaction.response.send_message(
             f"{EMOJIS['done']} The archive request has been declined.",
             ephemeral=False
@@ -1144,6 +1210,9 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1157,8 +1226,7 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Ticket Information"))
 
     # Support Type
     support_type = metadata.get('type', 'Unknown').capitalize()
@@ -1166,9 +1234,8 @@ async def create_support_ticket(interaction: discord.Interaction, user: discord.
 
     # Server info if applicable
     if metadata.get('type') == 'server' and metadata.get('guild_id'):
-        info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
         info_container.add_item(ui.TextDisplay(
-            f"**Concerned Server:**\n"
+            f"\n**Concerned Server:**\n"
             f"• ID: `{metadata['guild_id']}`\n"
             f"• Invite: {metadata.get('invite_link', 'N/A')}"
         ))
@@ -1210,6 +1277,9 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1223,18 +1293,15 @@ async def create_bug_report_ticket(interaction: discord.Interaction, user: disco
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Ticket Information"))
 
     if metadata.get('error_code'):
         error_info = metadata.get('error_info', {})
         info_container.add_item(ui.TextDisplay(f"**Error Code:** `{metadata['error_code']}`"))
 
         if error_info:
-            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
             # Error Context (PAS le traceback)
-            context_parts = ["**Error Context:**"]
+            context_parts = ["\n**Error Context:**"]
 
             if error_info.get('command'):
                 context_parts.append(f"• **Command:** `{error_info['command']}`")
@@ -1297,6 +1364,9 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1311,8 +1381,7 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Case Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Case Information"))
 
     if case_info:
         # Basic info
@@ -1324,30 +1393,26 @@ async def create_sanction_appeal_ticket(interaction: discord.Interaction, user: 
         ]
         info_container.add_item(ui.TextDisplay('\n'.join(basic_info)))
 
-        info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Entity info
         entity_type = case_info.get('entity_type', 'N/A')
         entity_id = case_info.get('entity_id', 'N/A')
 
         if entity_type == 'user':
-            info_container.add_item(ui.TextDisplay(f"**Sanctioned User:** <@{entity_id}> (`{entity_id}`)"))
+            info_container.add_item(ui.TextDisplay(f"\n**Sanctioned User:** <@{entity_id}> (`{entity_id}`)"))
         elif entity_type == 'guild':
-            info_container.add_item(ui.TextDisplay(f"**Sanctioned Server:** `{entity_id}`"))
+            info_container.add_item(ui.TextDisplay(f"\n**Sanctioned Server:** `{entity_id}`"))
 
         # Reason
         if case_info.get('reason'):
-            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-            info_container.add_item(ui.TextDisplay(f"**Reason:**\n{case_info['reason'][:1024]}"))
+            info_container.add_item(ui.TextDisplay(f"\n**Reason:**\n{case_info['reason'][:1024]}"))
 
         # Created by
         if case_info.get('created_by'):
-            info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
             created_timestamp = int(case_info['created_at'].timestamp()) if case_info.get('created_at') and hasattr(case_info['created_at'], 'timestamp') else 0
             created_by_text = f"<@{case_info['created_by']}>"
             if created_timestamp:
                 created_by_text += f" (<t:{created_timestamp}:R>)"
-            info_container.add_item(ui.TextDisplay(f"**Created by:** {created_by_text}"))
+            info_container.add_item(ui.TextDisplay(f"\n**Created by:** {created_by_text}"))
 
     info_view.add_item(info_container)
     await thread.send(view=info_view)
@@ -1386,6 +1451,9 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1408,8 +1476,7 @@ async def create_legal_request_ticket(interaction: discord.Interaction, user: di
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Ticket Information"))
 
     # Legal request type
     info_container.add_item(ui.TextDisplay(
@@ -1453,6 +1520,9 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1466,8 +1536,7 @@ async def create_payments_billing_ticket(interaction: discord.Interaction, user:
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Ticket Information"))
 
     # Basic info
     info_container.add_item(ui.TextDisplay(
@@ -1512,6 +1581,9 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
         auto_archive_duration=10080  # 7 days
     )
 
+    # Update thread status indicator (unclaimed)
+    await update_thread_status_indicator(thread, 'unclaimed')
+
     # Add user to thread
     await thread.add_user(user)
 
@@ -1525,8 +1597,7 @@ async def create_other_request_ticket(interaction: discord.Interaction, user: di
     info_container = ui.Container()
 
     # Title
-    info_container.add_item(ui.TextDisplay(f"## {EMOJIS['ticket']} Ticket Information"))
-    info_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+    info_container.add_item(ui.TextDisplay(f"### {EMOJIS['ticket']} Ticket Information"))
 
     # Basic info
     info_container.add_item(ui.TextDisplay(
@@ -1648,12 +1719,75 @@ class Tickets(commands.Cog):
         except:
             pass
 
+        # Update thread status indicator to archive_request
+        if isinstance(ctx.channel, discord.Thread):
+            await update_thread_status_indicator(ctx.channel, 'archive_request')
+
         # Send archive request
         view = ArchiveRequestView(ctx.channel.id)
         await ctx.send(
             f"**{EMOJIS['archive']} Archive Request**\nThe team would like to archive this ticket. Do you agree?",
             view=view
         )
+
+    @commands.command(name='unarchive')
+    async def unarchive_ticket_command(self, ctx: commands.Context):
+        """Command to unarchive a ticket"""
+        # Check if it's in a thread
+        if not isinstance(ctx.channel, discord.Thread):
+            await ctx.reply(
+                f"{EMOJIS['undone']} This command can only be used in a ticket thread.",
+                delete_after=5
+            )
+            return
+
+        # Check if user is staff
+        staff_info = await db.get_staff_info(ctx.author.id)
+
+        if not staff_info:
+            await ctx.reply(
+                f"{EMOJIS['undone']} You do not have permission to use this command.",
+                delete_after=5
+            )
+            return
+
+        # Retrieve ticket
+        ticket = await db.get_ticket(ctx.channel.id)
+
+        if not ticket:
+            await ctx.reply(
+                f"{EMOJIS['undone']} This thread is not a valid ticket.",
+                delete_after=5
+            )
+            return
+
+        # Check permissions
+        staff_roles = get_staff_roles(staff_info)
+        if not can_manage_ticket(staff_roles, ticket['category']):
+            await ctx.reply(
+                f"{EMOJIS['undone']} You do not have permission to manage this type of ticket.",
+                delete_after=5
+            )
+            return
+
+        # Unarchive ticket in DB
+        await db.unarchive_ticket(ctx.channel.id)
+
+        # Unlock and unarchive thread
+        thread = ctx.channel
+        await thread.edit(archived=False, locked=False)
+
+        # Update thread status indicator
+        status = 'claimed' if ticket['claimed_by'] else 'unclaimed'
+        await update_thread_status_indicator(thread, status)
+
+        # Delete command message
+        try:
+            await ctx.message.delete()
+        except:
+            pass
+
+        await ctx.send(f"{EMOJIS['done']} Ticket has been unarchived successfully.")
 
 
 async def setup(bot):
