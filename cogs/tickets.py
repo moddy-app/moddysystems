@@ -1038,7 +1038,10 @@ class TicketControlView(ui.LayoutView):
                 # Update thread status indicator
                 thread = interaction.guild.get_thread(self.thread_id)
                 if thread:
-                    await update_thread_status_indicator(thread, 'unclaimed')
+                    try:
+                        await update_thread_status_indicator(thread, 'unclaimed')
+                    except Exception as e:
+                        logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
 
                 await interaction.response.send_message(
                     f"{EMOJIS['done']} Ticket unclaimed successfully.",
@@ -1047,7 +1050,7 @@ class TicketControlView(ui.LayoutView):
 
                 # Send status message to thread
                 if thread:
-                    await thread.send(f"{interaction.user.mention} viens d'unclaim le ticket")
+                    await thread.send(f"{EMOJIS['front_hand']} {interaction.user.mention} has unclaimed this ticket")
 
                 # Create une nouvelle vue avec le bon label
                 new_view = TicketControlView(self.thread_id, self.category, self.user, self.emoji, self.title, self.mentions, is_claimed=False, bot=self.bot)
@@ -1068,7 +1071,10 @@ class TicketControlView(ui.LayoutView):
             # Update thread status indicator
             thread = interaction.guild.get_thread(self.thread_id)
             if thread:
-                await update_thread_status_indicator(thread, 'claimed')
+                try:
+                    await update_thread_status_indicator(thread, 'claimed')
+                except Exception as e:
+                    logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
 
             await interaction.response.send_message(
                 f"{EMOJIS['done']} Ticket claimed successfully.",
@@ -1077,7 +1083,7 @@ class TicketControlView(ui.LayoutView):
 
             # Send status message to thread
             if thread:
-                await thread.send(f"{interaction.user.mention} viens de claim le ticket")
+                await thread.send(f"{EMOJIS['front_hand']} {interaction.user.mention} has claimed this ticket")
 
             # Create une nouvelle vue avec le bon label
             new_view = TicketControlView(self.thread_id, self.category, self.user, self.emoji, self.title, self.mentions, is_claimed=True, bot=self.bot)
@@ -1107,40 +1113,71 @@ class TicketControlView(ui.LayoutView):
             )
             return
 
+        # Respond to interaction BEFORE archiving the thread
+        await interaction.response.send_message(
+            f"{EMOJIS['done']} Ticket archived successfully.",
+            ephemeral=True
+        )
+
         # Archive le ticket to DB
         await db.archive_ticket(self.thread_id)
 
         # Lock thread and update status indicator
         thread = interaction.guild.get_thread(self.thread_id)
         if thread:
-            await update_thread_status_indicator(thread, 'archived')
-
             # Send status message before locking
-            await thread.send(f"{interaction.user.mention} viens d'archiver le ticket")
+            await thread.send(f"{EMOJIS['archive']} {interaction.user.mention} has archived this ticket")
+
+            # Update thread status indicator (may hit rate limit, but that's ok)
+            try:
+                await update_thread_status_indicator(thread, 'archived')
+            except Exception as e:
+                logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
 
             await thread.edit(archived=True, locked=True)
 
-        await interaction.response.send_message(
-            f"{EMOJIS['done']} Ticket archived successfully.",
-            ephemeral=True
-        )
 
+class ArchiveRequestView(ui.LayoutView):
+    """View to request ticket archival (Components V2)"""
 
-class ArchiveRequestView(ui.View):
-    """View to request ticket archival"""
-
-    def __init__(self, thread_id: int):
+    def __init__(self, thread_id: int, user: discord.User):
         super().__init__(timeout=None)
         self.thread_id = thread_id
+        self.user = user
 
-    @discord.ui.button(
-        label="Yes",
-        style=discord.ButtonStyle.success,
-        emoji=EMOJIS['done'],
-        custom_id=f"archive_request:yes:{0}",  # Will be replaced with thread_id
-        row=0
-    )
-    async def yes_button(self, interaction: discord.Interaction, button: ui.Button):
+        container = ui.Container()
+
+        # Message asking for confirmation
+        container.add_item(ui.TextDisplay(
+            f"### {EMOJIS['archive']} Archive Request\n"
+            f"The team would like to archive this ticket. Do you agree?"
+        ))
+
+        # Buttons row
+        button_row = ui.ActionRow()
+
+        yes_button = ui.Button(
+            label="Yes",
+            style=discord.ButtonStyle.success,
+            emoji=EMOJIS['done'],
+            custom_id=f"archive_request:yes:{thread_id}"
+        )
+        yes_button.callback = self.yes_button
+
+        no_button = ui.Button(
+            label="No",
+            style=discord.ButtonStyle.danger,
+            emoji=EMOJIS['undone'],
+            custom_id=f"archive_request:no:{thread_id}"
+        )
+        no_button.callback = self.no_button
+
+        button_row.add_item(yes_button)
+        button_row.add_item(no_button)
+        container.add_item(button_row)
+        self.add_item(container)
+
+    async def yes_button(self, interaction: discord.Interaction):
         # Retrieve ticket
         ticket = await db.get_ticket(self.thread_id)
 
@@ -1158,6 +1195,12 @@ class ArchiveRequestView(ui.View):
                 ephemeral=True
             )
             return
+
+        # Respond BEFORE archiving
+        await interaction.response.send_message(
+            f"{EMOJIS['done']} The ticket has been archived.",
+            ephemeral=False
+        )
 
         # Archive ticket
         await db.archive_ticket(self.thread_id)
@@ -1165,22 +1208,14 @@ class ArchiveRequestView(ui.View):
         # Lock thread and update status indicator
         thread = interaction.guild.get_thread(self.thread_id)
         if thread:
-            await update_thread_status_indicator(thread, 'archived')
+            try:
+                await update_thread_status_indicator(thread, 'archived')
+            except Exception as e:
+                logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
+
             await thread.edit(archived=True, locked=True)
 
-        await interaction.response.send_message(
-            f"{EMOJIS['done']} The ticket has been archived.",
-            ephemeral=False
-        )
-
-    @discord.ui.button(
-        label="No",
-        style=discord.ButtonStyle.danger,
-        emoji=EMOJIS['undone'],
-        custom_id=f"archive_request:no:{0}",  # Will be replaced with thread_id
-        row=0
-    )
-    async def no_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def no_button(self, interaction: discord.Interaction):
         # Retrieve ticket
         ticket = await db.get_ticket(self.thread_id)
 
@@ -1199,16 +1234,19 @@ class ArchiveRequestView(ui.View):
             )
             return
 
-        # Update thread status indicator back to claimed or unclaimed
-        thread = interaction.guild.get_thread(self.thread_id)
-        if thread:
-            status = 'claimed' if ticket['claimed_by'] else 'unclaimed'
-            await update_thread_status_indicator(thread, status)
-
         await interaction.response.send_message(
             f"{EMOJIS['done']} The archive request has been declined.",
             ephemeral=False
         )
+
+        # Update thread status indicator back to claimed or unclaimed
+        thread = interaction.guild.get_thread(self.thread_id)
+        if thread:
+            status = 'claimed' if ticket['claimed_by'] else 'unclaimed'
+            try:
+                await update_thread_status_indicator(thread, status)
+            except Exception as e:
+                logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
 
 
 # Ticket creation functions
@@ -1754,14 +1792,17 @@ class Tickets(commands.Cog):
 
         # Update thread status indicator to archive_request
         if isinstance(ctx.channel, discord.Thread):
-            await update_thread_status_indicator(ctx.channel, 'archive_request')
+            try:
+                await update_thread_status_indicator(ctx.channel, 'archive_request')
+            except Exception as e:
+                logger.warning(f"Could not update thread status indicator (rate limit?): {e}")
 
-        # Send archive request
-        view = ArchiveRequestView(ctx.channel.id)
-        await ctx.send(
-            f"**{EMOJIS['archive']} Archive Request**\nThe team would like to archive this ticket. Do you agree?",
-            view=view
-        )
+        # Get ticket user
+        ticket_user = ctx.guild.get_member(ticket['user_id']) or await ctx.guild.fetch_member(ticket['user_id'])
+
+        # Send archive request (Components V2 - no content parameter)
+        view = ArchiveRequestView(ctx.channel.id, ticket_user)
+        await ctx.send(view=view)
 
     @commands.command(name='unarchive')
     async def unarchive_ticket_command(self, ctx: commands.Context):
