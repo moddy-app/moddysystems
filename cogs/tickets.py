@@ -755,6 +755,14 @@ class SupportPanelView(ui.LayoutView):
         # Create container
         container = ui.Container()
 
+        # Panel header
+        container.add_item(ui.TextDisplay(
+            f"## {EMOJIS['ticket']} Moddy Support Panel\n"
+            "Please select the category that matches your request below.\n"
+            "Our team will get back to you as soon as possible."
+        ))
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
         # First row of buttons
         row1 = ui.ActionRow()
 
@@ -1549,6 +1557,7 @@ class Tickets(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.support_panel_view = SupportPanelView()
 
     async def cog_load(self):
         """Appelé quand le cog est chargé"""
@@ -1556,7 +1565,7 @@ class Tickets(commands.Cog):
         await db.connect()
 
         # Register persistent views
-        self.bot.add_view(SupportPanelView())
+        self.bot.add_view(self.support_panel_view)
         logger.info("✅ Registered persistent SupportPanelView")
 
         logger.info("Tickets cog loaded")
@@ -1596,15 +1605,8 @@ class Tickets(commands.Cog):
             except:
                 pass
 
-            # Send support panel (juste texte + boutons)
-            content = (
-                f"### {EMOJIS['ticket']} Moddy Support Panel\n"
-                "Please select the category that matches your request below.\n"
-                "Our team will get back to you as soon as possible."
-            )
-
-            view = SupportPanelView()
-            await message.channel.send(content=content, view=view)
+            # Send support panel
+            await message.channel.send(view=self.support_panel_view)
 
     @commands.command(name='archiverequest')
     async def archive_request(self, ctx: commands.Context):
