@@ -101,7 +101,7 @@ class OfficialNewsModal(ui.Modal):
 
         # Add official message footer
         footer_text = (
-            "-# This is an official message issued by the Moddy team. "
+            "> -# <:verified:1424202350696071259> This is an official message issued by the Moddy team. "
             "For more information or updates, please consult Moddy's official communication channels. "
             "[Learn more](https://moddy.app/official_messages)"
         )
