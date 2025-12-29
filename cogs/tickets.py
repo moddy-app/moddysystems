@@ -5,9 +5,10 @@ import asyncpg
 import os
 import re
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 import aiohttp
 import json
+from datetime import datetime
 
 logger = logging.getLogger('ModdySystems.Tickets')
 
@@ -197,8 +198,11 @@ class TicketDatabase:
             return
 
         try:
+            # Convert datetime objects to JSON-serializable format
+            serializable_metadata = convert_datetime_to_json_serializable(metadata or {})
+
             # Convert metadata dict to JSON string
-            metadata_json = json.dumps(metadata or {})
+            metadata_json = json.dumps(serializable_metadata)
 
             async with self.systems_pool.acquire() as conn:
                 await conn.execute(
@@ -289,6 +293,24 @@ class TicketDatabase:
 
 # Global database instance
 db = TicketDatabase()
+
+
+# Helper function to convert datetime objects to JSON-serializable format
+def convert_datetime_to_json_serializable(obj: Any) -> Any:
+    """
+    Recursively converts datetime objects to ISO format strings
+    to make them JSON serializable
+    """
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {key: convert_datetime_to_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_datetime_to_json_serializable(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_datetime_to_json_serializable(item) for item in obj)
+    else:
+        return obj
 
 
 # Utility functions
